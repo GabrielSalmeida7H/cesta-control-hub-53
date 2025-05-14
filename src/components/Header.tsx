@@ -1,8 +1,8 @@
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LogOut, Menu, X, Building, Users, FileText, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface HeaderProps {
@@ -11,6 +11,27 @@ interface HeaderProps {
 
 const Header = ({ username }: HeaderProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+
+  // Fechar o menu quando clicar fora dele
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node) && isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  // Fechar o menu quando mudar de página
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
 
   return (
     <header className="bg-primary text-white py-4 px-6 shadow-md flex justify-between items-center fixed top-0 left-0 right-0 z-10">
@@ -28,26 +49,28 @@ const Header = ({ username }: HeaderProps) => {
               {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="absolute right-0 top-full mt-2 w-48 bg-white text-gray-800 rounded-md shadow-lg overflow-hidden md:right-auto z-10">
-            <nav className="flex flex-col">
-              <Link to="/institutions" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
-                <Building className="h-5 w-5" />
-                <span>Instituições</span>
-              </Link>
-              <Link to="/families" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
-                <Users className="h-5 w-5" />
-                <span>Ver Famílias</span>
-              </Link>
-              <Link to="/delivery" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
-                <Package className="h-5 w-5" />
-                <span>Gerenciar Entregas</span>
-              </Link>
-              <Link to="/reports" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
-                <FileText className="h-5 w-5" />
-                <span>Gerar Relatórios</span>
-              </Link>
-            </nav>
-          </CollapsibleContent>
+          <div ref={menuRef}>
+            <CollapsibleContent className="absolute right-0 top-full mt-2 w-48 bg-white text-gray-800 rounded-md shadow-lg overflow-hidden md:right-auto z-10">
+              <nav className="flex flex-col">
+                <Link to="/institutions" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
+                  <Building className="h-5 w-5" />
+                  <span>Instituições</span>
+                </Link>
+                <Link to="/families" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
+                  <Users className="h-5 w-5" />
+                  <span>Ver Famílias</span>
+                </Link>
+                <Link to="/delivery" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
+                  <Package className="h-5 w-5" />
+                  <span>Gerenciar Entregas</span>
+                </Link>
+                <Link to="/reports" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
+                  <FileText className="h-5 w-5" />
+                  <span>Gerar Relatórios</span>
+                </Link>
+              </nav>
+            </CollapsibleContent>
+          </div>
         </Collapsible>
 
         <span className="hidden sm:inline-block">Olá, {username}</span>
