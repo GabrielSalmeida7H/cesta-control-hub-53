@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Package, Calendar, Search, Users, Check, Building } from "lucide-react";
+import { Package, Calendar, Search, Users, Check, Building, MapPin, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -365,23 +365,51 @@ const DeliveryManagement = () => {
           {/* Institution Selection for Admin */}
           {isAdmin && (
             <div className="mb-6">
-              <label htmlFor="institution-select" className="block text-sm font-medium mb-2">
+              <label htmlFor="institution-select" className="block text-sm font-medium mb-3 text-gray-700">
+                <Building className="h-4 w-4 inline-block mr-2" />
                 Selecionar Instituição
               </label>
               <Select
                 value={selectedInstitutionId.toString()}
                 onValueChange={handleInstitutionChange}
               >
-                <SelectTrigger className="w-full md:w-[300px]">
-                  <SelectValue placeholder="Selecione uma instituição" />
+                <SelectTrigger className="w-full md:w-[400px] h-12 bg-white border-2 border-gray-200 hover:border-primary/50 focus:border-primary transition-all duration-200 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <Building className="h-5 w-5 text-primary" />
+                    <SelectValue placeholder="Selecione uma instituição" />
+                  </div>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border-2 border-gray-200 shadow-xl max-h-80">
                   {institutions.map((institution) => (
                     <SelectItem
                       key={institution.id}
                       value={institution.id.toString()}
+                      className="cursor-pointer hover:bg-gray-50 focus:bg-primary/5 p-4 border-b border-gray-100 last:border-b-0"
                     >
-                      {institution.name}
+                      <div className="flex items-start gap-3 w-full">
+                        <div className="flex-shrink-0 bg-primary/10 p-2 rounded-lg">
+                          <Building className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 truncate mb-1">
+                            {institution.name}
+                          </div>
+                          <div className="text-sm text-gray-500 flex items-center gap-1 mb-1">
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">{institution.address}</span>
+                          </div>
+                          <div className="text-sm text-gray-500 flex items-center gap-1 mb-1">
+                            <Phone className="h-3 w-3" />
+                            <span>{institution.phone}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Package className="h-3 w-3 text-green-600" />
+                            <span className="text-xs font-medium text-green-600">
+                              {institution.availableBaskets} cestas disponíveis
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
