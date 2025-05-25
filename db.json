@@ -1,0 +1,111 @@
+
+{
+  "users": [
+    {
+      "id": 1,
+      "email": "admin@araguari.mg.gov.br",
+      "password": "admin123",
+      "name": "Gabriel Admin",
+      "type": "admin",
+      "institution_id": null
+    },
+    {
+      "id": 2,
+      "email": "user@araguari.mg.gov.br",
+      "password": "user123",
+      "name": "João Silva",
+      "type": "normal",
+      "institution_id": 1
+    }
+  ],
+  "families": [
+    {
+      "id": 1,
+      "name": "Silva",
+      "cpf": "123.456.789-00",
+      "address": "Rua A, 123",
+      "members": 4,
+      "lastDelivery": "10/04/2025",
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "name": "Santos",
+      "cpf": "987.654.321-00",
+      "address": "Rua B, 456",
+      "members": 3,
+      "lastDelivery": "05/04/2025",
+      "status": "blocked",
+      "blockedBy": {
+        "id": 1,
+        "name": "Centro Comunitário São José"
+      },
+      "blockedUntil": "10/05/2025",
+      "blockReason": "Recebeu cesta básica"
+    },
+    {
+      "id": 3,
+      "name": "Oliveira",
+      "cpf": "456.789.123-00",
+      "address": "Rua C, 789",
+      "members": 5,
+      "lastDelivery": "01/04/2025",
+      "status": "active"
+    }
+  ],
+  "institutions": [
+    {
+      "id": 1,
+      "name": "Centro Comunitário São José",
+      "address": "Rua das Flores, 123",
+      "phone": "(11) 9999-8888",
+      "availableBaskets": 42,
+      "color": "bg-primary",
+      "inventory": {
+        "baskets": 42,
+        "milk": 56,
+        "rice": 80,
+        "beans": 75,
+        "vegetables": 65,
+        "peppers": 30,
+        "others": ["Óleo", "Sal", "Açúcar"]
+      }
+    },
+    {
+      "id": 2,
+      "name": "Associação Bem-Estar",
+      "address": "Av. Principal, 456",
+      "phone": "(11) 7777-6666",
+      "availableBaskets": 37,
+      "color": "bg-green-500",
+      "inventory": {
+        "baskets": 37,
+        "milk": 43,
+        "rice": 60,
+        "beans": 55,
+        "vegetables": 40,
+        "peppers": 25,
+        "others": ["Macarrão", "Café", "Farinha"]
+      }
+    }
+  ],
+  "deliveries": [
+    {
+      "id": 1,
+      "familyId": 1,
+      "institutionId": 1,
+      "date": "2025-04-10",
+      "status": "completed",
+      "items": ["Cesta Básica", "Leite"]
+    },
+    {
+      "id": 2,
+      "familyId": 3,
+      "institutionId": 2,
+      "date": "2025-04-01",
+      "status": "completed",
+      "items": ["Cesta Básica"]
+    }
+  ],
+  "auth": []
+}

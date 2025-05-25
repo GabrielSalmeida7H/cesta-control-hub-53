@@ -5,19 +5,40 @@ import Footer from "@/components/Footer";
 import DashboardCard from "@/components/DashboardCard";
 import DeliveriesChart from "@/components/DeliveriesChart";
 import RecentDeliveriesTable from "@/components/RecentDeliveriesTable";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFamilies, useInstitutions, useDeliveries } from "@/hooks/useApi";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
-  // Mock data
-  const username = "Gabriel Admin";
-  const monthlyDeliveries = 128;
-  const totalInstitutions = 12;
-  const familiesServed = 85;
-  const blockedFamilies = 7;
+  const { user, isLoading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  
+  const { data: families, isLoading: familiesLoading } = useFamilies();
+  const { data: institutions, isLoading: institutionsLoading } = useInstitutions();
+  const { data: deliveries, isLoading: deliveriesLoading } = useDeliveries();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/login");
+    }
+  }, [user, authLoading, navigate]);
+
+  if (authLoading || !user) {
+    return <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="text-lg">Carregando...</div>
+    </div>;
+  }
+
+  // Calcular estatísticas dos dados da API
+  const monthlyDeliveries = deliveries?.length || 0;
+  const totalInstitutions = institutions?.length || 0;
+  const activeFamilies = families?.filter((f: any) => f.status === "active")?.length || 0;
+  const blockedFamilies = families?.filter((f: any) => f.status === "blocked")?.length || 0;
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
-      {/* Header component with username */}
-      <Header username={username} />
+      <Header username={user.name} />
       
       <main className="pt-20 pb-8 px-4 md:px-8 max-w-[1400px] mx-auto w-full flex-grow">
         <div className="mb-8">
@@ -39,7 +60,7 @@ const Index = () => {
             />
             <DashboardCard 
               title="Famílias Atendidas" 
-              value={familiesServed} 
+              value={activeFamilies} 
               icon={Users} 
               color="success"
             />

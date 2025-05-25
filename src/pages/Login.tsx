@@ -6,24 +6,45 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import Footer from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 const Login = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Simulando uma autenticação
-    setTimeout(() => {
-      if (username && password) {
+    try {
+      const success = await login(email, password);
+      
+      if (success) {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: "Redirecionando para o painel...",
+        });
         navigate("/");
+      } else {
+        toast({
+          title: "Erro no login",
+          description: "Email ou senha incorretos.",
+          variant: "destructive",
+        });
       }
+    } catch (error) {
+      toast({
+        title: "Erro de conexão",
+        description: "Verifique se o servidor está rodando.",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -53,12 +74,13 @@ const Login = () => {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Nome de Usuário</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="username"
-                  placeholder="Digite seu nome de usuário"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="Digite seu email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   autoFocus
                 />
@@ -99,8 +121,15 @@ const Login = () => {
           </CardContent>
           
           <CardFooter className="flex justify-center">
-            <div className="text-center text-sm text-muted-foreground">
-              © {new Date().getFullYear()} - Secretaria de Assistência Social
+            <div className="text-center">
+              <div className="text-sm text-muted-foreground mb-2">
+                © {new Date().getFullYear()} - Secretaria de Assistência Social
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <p><strong>Credenciais de teste:</strong></p>
+                <p>Admin: admin@araguari.mg.gov.br / admin123</p>
+                <p>Usuário: user@araguari.mg.gov.br / user123</p>
+              </div>
             </div>
           </CardFooter>
         </Card>

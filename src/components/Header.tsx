@@ -1,9 +1,9 @@
-
 import { useEffect, useRef, useState } from "react";
 import { LogOut, Menu, X, Building, Users, FileText, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   username: string;
@@ -13,6 +13,8 @@ const Header = ({ username }: HeaderProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
 
   // Fechar o menu quando clicar fora dele
   useEffect(() => {
@@ -32,6 +34,11 @@ const Header = ({ username }: HeaderProps) => {
   useEffect(() => {
     setIsOpen(false);
   }, [location.pathname]);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <header className="bg-primary text-white py-4 px-6 shadow-md flex justify-between items-center fixed top-0 left-0 right-0 z-10">
@@ -60,10 +67,12 @@ const Header = ({ username }: HeaderProps) => {
                   <Users className="h-5 w-5" />
                   <span>Ver Famílias</span>
                 </Link>
-                <Link to="/delivery" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
-                  <Package className="h-5 w-5" />
-                  <span>Gerenciar Entregas</span>
-                </Link>
+                {user?.type === 'admin' && (
+                  <Link to="/delivery" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
+                    <Package className="h-5 w-5" />
+                    <span>Gerenciar Entregas</span>
+                  </Link>
+                )}
                 <Link to="/reports" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100">
                   <FileText className="h-5 w-5" />
                   <span>Gerar Relatórios</span>
@@ -77,6 +86,7 @@ const Header = ({ username }: HeaderProps) => {
         <Button 
           variant="ghost" 
           className="text-white hover:text-white hover:bg-primary/80 flex items-center gap-2"
+          onClick={handleLogout}
         >
           <span className="hidden sm:inline-block">Sair</span>
           <LogOut className="h-5 w-5" />
