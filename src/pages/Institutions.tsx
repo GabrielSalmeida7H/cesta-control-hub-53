@@ -45,6 +45,9 @@ const Institutions = () => {
   const createInstitutionMutation = useCreateInstitution();
   const updateInstitutionMutation = useUpdateInstitution();
   
+  // Derive isAdmin from user type
+  const isAdmin = user?.type === 'admin';
+  
   // State for dialog controls
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
