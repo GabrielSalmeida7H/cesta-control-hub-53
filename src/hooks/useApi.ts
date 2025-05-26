@@ -36,6 +36,48 @@ export const useDeliveries = () => {
   });
 };
 
+// Hook para criar família
+export const useCreateFamily = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (family: any) => {
+      const response = await fetch(`${API_BASE_URL}/families`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(family),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['families'] });
+    },
+  });
+};
+
+// Hook para criar instituição
+export const useCreateInstitution = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (institution: any) => {
+      const response = await fetch(`${API_BASE_URL}/institutions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(institution),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['institutions'] });
+    },
+  });
+};
+
 // Hook para atualizar família
 export const useUpdateFamily = () => {
   const queryClient = useQueryClient();

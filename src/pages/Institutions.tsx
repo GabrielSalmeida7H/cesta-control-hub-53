@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Building, Edit, Info } from "lucide-react";
+import { Building, Edit, Info, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -10,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useForm } from "react-hook-form";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useInstitutions, useCreateInstitution, useUpdateInstitution } from "@/hooks/useApi";
 
 // Interface for our institution data model
 interface Institution {
@@ -30,18 +32,27 @@ interface Institution {
   };
 }
 
+interface InstitutionFormData {
+  name: string;
+  address: string;
+  phone: string;
+  availableBaskets: number;
+}
+
 const Institutions = () => {
-  // Mock data
-  const username = "Gabriel Admin";
-  const isAdmin = true; // Mock user role - would be from authentication context in a real app
+  const { user } = useAuth();
+  const { data: institutions = [], isLoading } = useInstitutions();
+  const createInstitutionMutation = useCreateInstitution();
+  const updateInstitutionMutation = useUpdateInstitution();
   
   // State for dialog controls
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isNewInstitutionDialogOpen, setIsNewInstitutionDialogOpen] = useState(false);
   const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
 
   // Setup form
-  const form = useForm<Institution>({
+  const form = useForm<InstitutionFormData>({
     defaultValues: {
       name: "",
       address: "",
@@ -50,83 +61,19 @@ const Institutions = () => {
     }
   });
 
-  // Array of institutions with their information and expanded inventory data
-  const [institutions, setInstitutions] = useState<Institution[]>([
-    { 
-      id: 1, 
-      name: "Centro Comunitário São José", 
-      address: "Rua das Flores, 123", 
-      phone: "(11) 9999-8888", 
-      availableBaskets: 42, 
-      color: "bg-primary",
-      inventory: {
-        baskets: 42,
-        milk: 56,
-        rice: 80,
-        beans: 75,
-        vegetables: 65,
-        peppers: 30,
-        others: ["Óleo", "Sal", "Açúcar"]
-      }
-    },
-    { 
-      id: 2, 
-      name: "Associação Bem-Estar", 
-      address: "Av. Principal, 456", 
-      phone: "(11) 7777-6666", 
-      availableBaskets: 37, 
-      color: "bg-green-500",
-      inventory: {
-        baskets: 37,
-        milk: 43,
-        rice: 60,
-        beans: 55,
-        vegetables: 40,
-        peppers: 25,
-        others: ["Macarrão", "Café", "Farinha"]
-      }
-    },
-    { 
-      id: 3, 
-      name: "Igreja Nossa Senhora", 
-      address: "Praça Central, 789", 
-      phone: "(11) 5555-4444", 
-      availableBaskets: 25, 
-      color: "bg-red-500",
-      inventory: {
-        baskets: 25,
-        milk: 32,
-        rice: 45,
-        beans: 40,
-        vegetables: 30,
-        peppers: 15,
-        others: ["Biscoitos", "Achocolatado"]
-      }
-    },
-    { 
-      id: 4, 
-      name: "Instituto Esperança", 
-      address: "Rua dos Sonhos, 101", 
-      phone: "(11) 3333-2222", 
-      availableBaskets: 31, 
-      color: "bg-primary/80",
-      inventory: {
-        baskets: 31,
-        milk: 40,
-        rice: 50,
-        beans: 45,
-        vegetables: 35,
-        peppers: 20,
-        others: ["Ovos", "Frutas", "Fubá"]
-      }
-    },
-  ]);
+  const editForm = useForm<Institution>({
+    defaultValues: {
+      name: "",
+      address: "",
+      phone: "",
+      availableBaskets: 0,
+    }
+  });
 
   // Function to handle opening the edit dialog
   const handleEdit = (institution: Institution) => {
     setSelectedInstitution(institution);
-    // Reset form with institution values
-    form.reset({
+    editForm.reset({
       id: institution.id,
       name: institution.name,
       address: institution.address,
@@ -138,14 +85,21 @@ const Institutions = () => {
   };
 
   // Function to save edited institution
-  const onSubmit = (data: Institution) => {
-    // Update institutions array with edited data
-    const updatedInstitutions = institutions.map(inst => 
-      inst.id === data.id ? { ...inst, ...data } : inst
-    );
-    setInstitutions(updatedInstitutions);
-    setIsEditDialogOpen(false);
-    console.log("Dados salvos:", data);
+  const onSubmitEdit = async (data: Institution) => {
+    try {
+      await updateInstitutionMutation.mutateAsync(data);
+      setIsEditDialogOpen(false);
+      toast({
+        title: "Instituição atualizada!",
+        description: "As alterações foram salvas com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar instituição",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Function to handle opening the details dialog
@@ -154,17 +108,63 @@ const Institutions = () => {
     setIsDetailsDialogOpen(true);
   };
 
+  // Function to handle creating a new institution
+  const handleCreateInstitution = async (data: InstitutionFormData) => {
+    try {
+      const newInstitution = {
+        ...data,
+        color: "bg-primary",
+        inventory: {
+          baskets: data.availableBaskets,
+          milk: 0,
+          rice: 0,
+          beans: 0,
+          vegetables: 0,
+          peppers: 0,
+          others: []
+        }
+      };
+
+      await createInstitutionMutation.mutateAsync(newInstitution);
+      
+      toast({
+        title: "Instituição criada com sucesso!",
+        description: `A instituição ${data.name} foi cadastrada.`,
+      });
+      
+      setIsNewInstitutionDialogOpen(false);
+      form.reset();
+    } catch (error) {
+      toast({
+        title: "Erro ao criar instituição",
+        description: "Verifique os dados e tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-lg">Carregando instituições...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
       {/* Header component with username */}
-      <Header username={username} />
+      <Header username={user?.name || ""} />
       
       <main className="pt-20 pb-8 px-4 md:px-8 max-w-[1400px] mx-auto flex-grow">
         <div className="mb-8">
           {/* Page title and add new institution button */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Instituições</h2>
-            <Button className="bg-primary hover:bg-primary/90">
+            <Button 
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setIsNewInstitutionDialogOpen(true)}
+            >
               <Building className="mr-2 h-4 w-4" /> Nova Instituição
             </Button>
           </div>
@@ -208,23 +208,23 @@ const Institutions = () => {
         </div>
       </main>
 
-      {/* Edit Institution Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      {/* New Institution Dialog */}
+      <Dialog open={isNewInstitutionDialogOpen} onOpenChange={setIsNewInstitutionDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Editar Instituição</DialogTitle>
+            <DialogTitle>Nova Instituição</DialogTitle>
           </DialogHeader>
           
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleCreateInstitution)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome</FormLabel>
+                    <FormLabel>Nome da Instituição</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} placeholder="Ex: Centro Comunitário" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -238,7 +238,7 @@ const Institutions = () => {
                   <FormItem>
                     <FormLabel>Endereço</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} placeholder="Rua, número - Bairro" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -252,7 +252,7 @@ const Institutions = () => {
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} placeholder="(00) 0000-0000" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -261,6 +261,97 @@ const Institutions = () => {
               
               <FormField
                 control={form.control}
+                name="availableBaskets"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cestas Disponíveis</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        {...field} 
+                        value={field.value}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        min="0"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsNewInstitutionDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createInstitutionMutation.isPending}
+                >
+                  {createInstitutionMutation.isPending ? "Salvando..." : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Institution Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Instituição</DialogTitle>
+          </DialogHeader>
+          
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onSubmitEdit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Endereço</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
                 name="availableBaskets"
                 render={({ field }) => (
                   <FormItem>

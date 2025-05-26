@@ -1,4 +1,3 @@
-
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Users, UserPlus, Search, Lock, Unlock } from "lucide-react";
@@ -7,8 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFamilies, useCreateFamily, useUpdateFamily } from "@/hooks/useApi";
 
 // Updated interface for families with blocking information
 interface Family {
@@ -27,108 +30,96 @@ interface Family {
   blockReason?: string;
 }
 
+interface FamilyFormData {
+  name: string;
+  cpf: string;
+  address: string;
+  members: number;
+}
+
 const Families = () => {
-  // Mock data
-  const username = "Gabriel Admin";
-  const isAdmin = true; // Simulating admin privileges
+  const { user } = useAuth();
+  const { data: families = [], isLoading, refetch } = useFamilies();
+  const createFamilyMutation = useCreateFamily();
+  const updateFamilyMutation = useUpdateFamily();
 
   // Dialog states
   const [selectedFamily, setSelectedFamily] = useState<Family | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isUnblockDialogOpen, setIsUnblockDialogOpen] = useState(false);
+  const [isNewFamilyDialogOpen, setIsNewFamilyDialogOpen] = useState(false);
 
-  // Mock family data with block status
-  const [families, setFamilies] = useState<Family[]>([
-    { 
-      id: 1, 
-      name: "Silva", 
-      cpf: "123.456.789-00", 
-      address: "Rua A, 123", 
-      members: 4, 
-      lastDelivery: "10/04/2025",
-      status: "active"
-    },
-    { 
-      id: 2, 
-      name: "Santos", 
-      cpf: "987.654.321-00", 
-      address: "Rua B, 456", 
-      members: 3, 
-      lastDelivery: "05/04/2025",
-      status: "blocked",
-      blockedBy: {
-        id: 1,
-        name: "Centro Comunitário São José"
-      },
-      blockedUntil: "10/05/2025",
-      blockReason: "Recebeu cesta básica"
-    },
-    { 
-      id: 3, 
-      name: "Oliveira", 
-      cpf: "456.789.123-00", 
-      address: "Rua C, 789", 
-      members: 5, 
-      lastDelivery: "01/04/2025",
-      status: "active"
-    },
-    { 
-      id: 4, 
-      name: "Pereira", 
-      cpf: "789.123.456-00", 
-      address: "Rua D, 101", 
-      members: 2, 
-      lastDelivery: "28/03/2025",
-      status: "blocked",
-      blockedBy: {
-        id: 2,
-        name: "Associação Bem-Estar"
-      },
-      blockedUntil: "28/04/2025",
-      blockReason: "Recebeu cesta básica"
-    },
-    { 
-      id: 5, 
-      name: "Costa", 
-      cpf: "321.654.987-00", 
-      address: "Rua E, 202", 
-      members: 6, 
-      lastDelivery: "25/03/2025",
-      status: "active"
-    },
-  ]);
+  const form = useForm<FamilyFormData>({
+    defaultValues: {
+      name: "",
+      cpf: "",
+      address: "",
+      members: 1,
+    }
+  });
+
+  // Function to create a new family
+  const handleCreateFamily = async (data: FamilyFormData) => {
+    try {
+      const newFamily = {
+        ...data,
+        status: "active",
+        lastDelivery: "Nunca",
+      };
+
+      await createFamilyMutation.mutateAsync(newFamily);
+      
+      toast({
+        title: "Família criada com sucesso!",
+        description: `A família ${data.name} foi cadastrada.`,
+      });
+      
+      setIsNewFamilyDialogOpen(false);
+      form.reset();
+    } catch (error) {
+      toast({
+        title: "Erro ao criar família",
+        description: "Verifique os dados e tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Function to unblock a family
   const handleUnblock = (family: Family) => {
-    if (!isAdmin) return;
+    if (user?.type !== 'admin') return;
     
     setSelectedFamily(family);
     setIsUnblockDialogOpen(true);
   };
 
   // Function to confirm family unblock
-  const confirmUnblock = () => {
+  const confirmUnblock = async () => {
     if (!selectedFamily) return;
     
-    const updatedFamilies = families.map(f => {
-      if (f.id === selectedFamily.id) {
-        return {
-          ...f,
-          status: "active" as const,
-          blockedBy: undefined,
-          blockedUntil: undefined,
-          blockReason: undefined
-        };
-      }
-      return f;
-    });
-    
-    setFamilies(updatedFamilies);
-    setIsUnblockDialogOpen(false);
-    toast({
-      title: "Família desbloqueada",
-      description: `A família ${selectedFamily.name} foi desbloqueada com sucesso.`
-    });
+    try {
+      const updatedFamily = {
+        ...selectedFamily,
+        status: "active",
+        blockedBy: undefined,
+        blockedUntil: undefined,
+        blockReason: undefined
+      };
+
+      await updateFamilyMutation.mutateAsync(updatedFamily);
+      
+      setIsUnblockDialogOpen(false);
+      toast({
+        title: "Família desbloqueada",
+        description: `A família ${selectedFamily.name} foi desbloqueada com sucesso.`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao desbloquear família",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Function to view family details
@@ -137,9 +128,17 @@ const Families = () => {
     setIsDetailsOpen(true);
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-lg">Carregando famílias...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
-      <Header username={username} />
+      <Header username={user?.name || ""} />
       
       <main className="pt-20 pb-8 px-4 md:px-8 max-w-[1400px] mx-auto flex-grow">
         <div className="mb-8">
@@ -153,7 +152,10 @@ const Families = () => {
                   className="pl-9 w-full sm:w-64"
                 />
               </div>
-              <Button className="bg-primary hover:bg-primary/90">
+              <Button 
+                className="bg-primary hover:bg-primary/90"
+                onClick={() => setIsNewFamilyDialogOpen(true)}
+              >
                 <UserPlus className="mr-2 h-4 w-4" /> Nova Família
               </Button>
             </div>
@@ -174,7 +176,7 @@ const Families = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {families.map((family) => (
+                  {families.map((family: Family) => (
                     <TableRow key={family.id}>
                       <TableCell className="font-medium">{family.name}</TableCell>
                       <TableCell>{family.cpf}</TableCell>
@@ -201,7 +203,7 @@ const Families = () => {
                           >
                             Detalhes
                           </Button>
-                          {isAdmin && family.status === "blocked" && (
+                          {user?.type === 'admin' && family.status === "blocked" && (
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -221,6 +223,97 @@ const Families = () => {
           </div>
         </div>
       </main>
+      
+      {/* New Family Dialog */}
+      <Dialog open={isNewFamilyDialogOpen} onOpenChange={setIsNewFamilyDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Nova Família</DialogTitle>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleCreateFamily)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome da Família</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Ex: Silva" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="cpf"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CPF do Responsável</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="000.000.000-00" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Endereço</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Rua, número - Bairro" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="members"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de Membros</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        {...field} 
+                        value={field.value}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        min="1"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsNewFamilyDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createFamilyMutation.isPending}
+                >
+                  {createFamilyMutation.isPending ? "Salvando..." : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
       
       {/* Family Details Dialog */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
