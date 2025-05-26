@@ -1,24 +1,38 @@
 
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDeliveriesByInstitution, useDeliveries } from "@/hooks/useApi";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Sample data for the table
-const deliveries = [
-  { id: 1, family: 'Silva, Maria', date: '02/05/2023', institution: 'APAE', quantity: 2 },
-  { id: 2, family: 'Santos, João', date: '30/04/2023', institution: 'Casa de Apoio', quantity: 1 },
-  { id: 3, family: 'Oliveira, Ana', date: '28/04/2023', institution: 'Lar dos Idosos', quantity: 3 },
-  { id: 4, family: 'Souza, Pedro', date: '25/04/2023', institution: 'APAE', quantity: 2 },
-  { id: 5, family: 'Ferreira, Luiza', date: '22/04/2023', institution: 'Casa de Apoio', quantity: 1 },
-  { id: 6, family: 'Costa, Carlos', date: '20/04/2023', institution: 'Lar dos Idosos', quantity: 2 },
-  { id: 7, family: 'Pereira, Mariana', date: '18/04/2023', institution: 'APAE', quantity: 1 },
-  { id: 8, family: 'Alves, Roberto', date: '15/04/2023', institution: 'Casa de Apoio', quantity: 3 },
-];
+interface RecentDeliveriesTableProps {
+  institutionId?: number;
+}
 
-const RecentDeliveriesTable = () => {
+const RecentDeliveriesTable = ({ institutionId }: RecentDeliveriesTableProps) => {
+  const { user } = useAuth();
+  
+  // Se institutionId for fornecido, usar entregas filtradas, senão usar todas
+  const { data: filteredDeliveries } = useDeliveriesByInstitution(institutionId);
+  const { data: allDeliveries } = useDeliveries();
+  
+  const deliveries = institutionId ? filteredDeliveries : allDeliveries;
+
+  // Ordenar entregas por data mais recente
+  const sortedDeliveries = deliveries?.slice().sort((a: any, b: any) => {
+    const dateA = new Date(a.deliveryDate.split('/').reverse().join('-'));
+    const dateB = new Date(b.deliveryDate.split('/').reverse().join('-'));
+    return dateB.getTime() - dateA.getTime();
+  }).slice(0, 8) || []; // Mostrar apenas as 8 mais recentes
+
   return (
     <Card className="shadow-md overflow-hidden">
       <div className="bg-primary text-white p-4">
-        <h2 className="text-xl font-bold">Entregas Recentes</h2>
+        <h2 className="text-xl font-bold">
+          {user?.type === 'admin' 
+            ? "Entregas Recentes - Todas as Instituições" 
+            : `Entregas Recentes - ${user?.institution?.name || 'Sua Instituição'}`
+          }
+        </h2>
       </div>
       <div className="overflow-x-auto max-h-[400px]">
         <Table>
@@ -31,14 +45,22 @@ const RecentDeliveriesTable = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {deliveries.map((delivery) => (
-              <TableRow key={delivery.id}>
-                <TableCell className="font-medium">{delivery.family}</TableCell>
-                <TableCell>{delivery.date}</TableCell>
-                <TableCell>{delivery.institution}</TableCell>
-                <TableCell className="text-right">{delivery.quantity}</TableCell>
+            {sortedDeliveries.length > 0 ? (
+              sortedDeliveries.map((delivery: any) => (
+                <TableRow key={delivery.id}>
+                  <TableCell className="font-medium">{delivery.familyName}</TableCell>
+                  <TableCell>{delivery.deliveryDate}</TableCell>
+                  <TableCell>{delivery.institutionName}</TableCell>
+                  <TableCell className="text-right">{delivery.items?.baskets || 1}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-6 text-gray-500">
+                  Nenhuma entrega encontrada
+                </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>

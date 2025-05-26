@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { toast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFamilies, useInstitutions, useDeliveriesByInstitution, useCreateDelivery, useUpdateFamily, useUpdateInstitution } from "@/hooks/useApi";
 
 // Interfaces
 interface Family {
@@ -29,7 +31,7 @@ interface Family {
   };
   blockedUntil?: string;
   blockReason?: string;
-  institutionIds: number[]; // List of institutions this family is registered with
+  institutionIds: number[];
 }
 
 interface Institution {
@@ -37,7 +39,11 @@ interface Institution {
   name: string;
   address: string;
   phone: string;
-  availableBaskets: number; // Changed from deliveries to availableBaskets
+  availableBaskets: number;
+  inventory?: {
+    baskets: number;
+    [key: string]: number;
+  };
 }
 
 interface Delivery {
@@ -47,7 +53,7 @@ interface Delivery {
   institutionId: number;
   institutionName: string;
   deliveryDate: string;
-  blockPeriod: number; // Days
+  blockPeriod: number;
   blockUntil: string;
   items: {
     baskets: number;
@@ -57,15 +63,22 @@ interface Delivery {
 
 interface DeliveryFormValues {
   familyId: number;
-  blockPeriod: string; // Days as string to be used in select
+  blockPeriod: string;
   basketCount: number;
   otherItems: string;
 }
 
 const DeliveryManagement = () => {
-  // Mock data
-  const username = "Gabriel Admin";
-  const isAdmin = true; // Mock admin status
+  const { user } = useAuth();
+  const isAdmin = user?.type === 'admin';
+  
+  // API hooks
+  const { data: families = [] } = useFamilies();
+  const { data: institutions = [] } = useInstitutions();
+  const { data: deliveries = [] } = useDeliveriesByInstitution(user?.institution_id);
+  const createDeliveryMutation = useCreateDelivery();
+  const updateFamilyMutation = useUpdateFamily();
+  const updateInstitutionMutation = useUpdateInstitution();
   
   // States
   const [selectedFamily, setSelectedFamily] = useState<Family | null>(null);
@@ -73,170 +86,25 @@ const DeliveryManagement = () => {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("active");
-  const [selectedInstitutionId, setSelectedInstitutionId] = useState<number>(1); // Default to first institution
+  const [searchTerm, setSearchTerm] = useState("");
   
-  // Mock data for institutions
-  const institutions: Institution[] = [
-    { id: 1, name: "Centro Comunitário São José", address: "Rua das Flores, 123", phone: "(11) 9999-8888", availableBaskets: 42 },
-    { id: 2, name: "Associação Bem-Estar", address: "Av. Principal, 456", phone: "(11) 7777-6666", availableBaskets: 37 },
-    { id: 3, name: "Igreja Nossa Senhora", address: "Praça Central, 789", phone: "(11) 5555-4444", availableBaskets: 25 },
-    { id: 4, name: "Instituto Esperança", address: "Rua dos Sonhos, 101", phone: "(11) 3333-2222", availableBaskets: 31 },
-  ];
+  // Get current institution
+  const currentInstitution = institutions.find(i => i.id === user?.institution_id);
   
-  // Mock data for families with different statuses and institution associations
-  const [families, setFamilies] = useState<Family[]>([
-    { 
-      id: 1, 
-      name: "Silva", 
-      cpf: "123.456.789-00", 
-      address: "Rua A, 123", 
-      members: 4, 
-      lastDelivery: "10/04/2025",
-      status: "active",
-      institutionIds: [1, 3] // Registered with institutions 1 and 3
-    },
-    { 
-      id: 2, 
-      name: "Santos", 
-      cpf: "987.654.321-00", 
-      address: "Rua B, 456", 
-      members: 3, 
-      lastDelivery: "05/04/2025",
-      status: "blocked",
-      blockedBy: {
-        id: 1,
-        name: "Centro Comunitário São José"
-      },
-      blockedUntil: "10/05/2025",
-      blockReason: "Recebeu cesta básica",
-      institutionIds: [1, 2] // Registered with institutions 1 and 2
-    },
-    { 
-      id: 3, 
-      name: "Oliveira", 
-      cpf: "456.789.123-00", 
-      address: "Rua C, 789", 
-      members: 5, 
-      lastDelivery: "01/04/2025",
-      status: "active",
-      institutionIds: [1, 2, 4] // Registered with institutions 1, 2 and 4
-    },
-    { 
-      id: 4, 
-      name: "Pereira", 
-      cpf: "789.123.456-00", 
-      address: "Rua D, 101", 
-      members: 2, 
-      lastDelivery: "28/03/2025",
-      status: "blocked",
-      blockedBy: {
-        id: 2,
-        name: "Associação Bem-Estar"
-      },
-      blockedUntil: "28/04/2025",
-      blockReason: "Recebeu cesta básica",
-      institutionIds: [2, 3] // Registered with institutions 2 and 3
-    },
-    { 
-      id: 5, 
-      name: "Costa", 
-      cpf: "321.654.987-00", 
-      address: "Rua E, 202", 
-      members: 6, 
-      lastDelivery: null,
-      status: "active",
-      institutionIds: [1, 3, 4] // Registered with institutions 1, 3 and 4
-    },
-  ]);
+  // Filter families for eligible families (all families are shared)
+  const filteredFamilies = families.filter((family: Family) => {
+    const statusMatch = filterStatus === "all" || family.status === filterStatus;
+    const searchMatch = family.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       family.cpf.includes(searchTerm);
+    return statusMatch && searchMatch;
+  });
   
-  // Mock data for past deliveries
-  const [deliveries, setDeliveries] = useState<Delivery[]>([
-    {
-      id: 1,
-      familyId: 1,
-      familyName: "Silva",
-      institutionId: 1,
-      institutionName: "Centro Comunitário São José",
-      deliveryDate: "10/04/2025",
-      blockPeriod: 30,
-      blockUntil: "10/05/2025",
-      items: {
-        baskets: 1,
-        others: ["Leite (2L)", "Arroz (5kg)"]
-      }
-    },
-    {
-      id: 2,
-      familyId: 3,
-      familyName: "Oliveira",
-      institutionId: 1,
-      institutionName: "Centro Comunitário São José",
-      deliveryDate: "01/04/2025",
-      blockPeriod: 30,
-      blockUntil: "01/05/2025",
-      items: {
-        baskets: 2,
-        others: ["Feijão (2kg)", "Óleo (1L)"]
-      }
-    },
-    {
-      id: 3,
-      familyId: 2,
-      familyName: "Santos",
-      institutionId: 1,
-      institutionName: "Centro Comunitário São José",
-      deliveryDate: "05/04/2025",
-      blockPeriod: 30,
-      blockUntil: "05/05/2025",
-      items: {
-        baskets: 1,
-        others: ["Macarrão (500g)", "Café (500g)"]
-      }
-    },
-    {
-      id: 4,
-      familyId: 4,
-      familyName: "Pereira",
-      institutionId: 2,
-      institutionName: "Associação Bem-Estar",
-      deliveryDate: "28/03/2025",
-      blockPeriod: 30,
-      blockUntil: "28/04/2025",
-      items: {
-        baskets: 1,
-        others: ["Açúcar (1kg)", "Farinha (2kg)"]
-      }
-    },
-    {
-      id: 5,
-      familyId: 5,
-      familyName: "Costa",
-      institutionId: 3,
-      institutionName: "Igreja Nossa Senhora",
-      deliveryDate: "25/03/2025",
-      blockPeriod: 30,
-      blockUntil: "25/04/2025",
-      items: {
-        baskets: 2,
-        others: ["Sabonete (3un)", "Detergente (500ml)"]
-      }
-    }
-  ]);
-
-  // Filter families based on status and selected institution
-  const filteredFamilies = filterStatus === "all" 
-    ? families.filter(f => f.institutionIds.includes(selectedInstitutionId))
-    : families.filter(f => f.status === filterStatus && f.institutionIds.includes(selectedInstitutionId));
-  
-  // Only show deliveries from selected institution
-  const filteredDeliveries = deliveries
-    .filter(d => d.institutionId === selectedInstitutionId)
-    .sort((a, b) => {
-      // Sort by date descending
-      const dateA = new Date(a.deliveryDate.split('/').reverse().join('-'));
-      const dateB = new Date(b.deliveryDate.split('/').reverse().join('-'));
-      return dateB.getTime() - dateA.getTime();
-    });
+  // Filter deliveries for this institution only
+  const institutionDeliveries = deliveries.sort((a: any, b: any) => {
+    const dateA = new Date(a.deliveryDate.split('/').reverse().join('-'));
+    const dateB = new Date(b.deliveryDate.split('/').reverse().join('-'));
+    return dateB.getTime() - dateA.getTime();
+  });
   
   // Setup form
   const form = useForm<DeliveryFormValues>({
@@ -258,11 +126,6 @@ const DeliveryManagement = () => {
       otherItems: ""
     });
     setIsDeliveryDialogOpen(true);
-  };
-  
-  // Handle institution change (admin only)
-  const handleInstitutionChange = (value: string) => {
-    setSelectedInstitutionId(parseInt(value));
   };
   
   // Handle delivery details view
@@ -287,127 +150,107 @@ const DeliveryManagement = () => {
     return formatDate(blockUntil);
   };
 
-  // Get current institution
-  const currentInstitution = institutions.find(i => i.id === selectedInstitutionId);
-
   // Process delivery submission
-  const onSubmit = (data: DeliveryFormValues) => {
-    if (!selectedFamily || !currentInstitution) return;
+  const onSubmit = async (data: DeliveryFormValues) => {
+    if (!selectedFamily || !currentInstitution || !user) return;
     
-    const blockPeriod = parseInt(data.blockPeriod);
-    const blockUntilDate = calculateBlockUntilDate(blockPeriod);
-    
-    // Create new delivery record
-    const newDelivery: Delivery = {
-      id: deliveries.length + 1,
-      familyId: selectedFamily.id,
-      familyName: selectedFamily.name,
-      institutionId: selectedInstitutionId,
-      institutionName: currentInstitution.name,
-      deliveryDate: formatDate(new Date()),
-      blockPeriod,
-      blockUntil: blockUntilDate,
-      items: {
-        baskets: data.basketCount,
-        others: data.otherItems ? data.otherItems.split(',').map(item => item.trim()) : []
-      }
-    };
-    
-    // Add delivery to records
-    setDeliveries([...deliveries, newDelivery]);
-    
-    // Update available baskets count
-    const updatedInstitutions = institutions.map(inst => {
-      if (inst.id === selectedInstitutionId) {
-        return {
-          ...inst,
-          availableBaskets: Math.max(0, inst.availableBaskets - data.basketCount)
+    try {
+      const blockPeriod = parseInt(data.blockPeriod);
+      const blockUntilDate = calculateBlockUntilDate(blockPeriod);
+      
+      // Create new delivery record
+      const newDelivery = {
+        familyId: selectedFamily.id,
+        familyName: selectedFamily.name,
+        institutionId: currentInstitution.id,
+        institutionName: currentInstitution.name,
+        deliveryDate: formatDate(new Date()),
+        blockPeriod,
+        blockUntil: blockUntilDate,
+        items: {
+          baskets: data.basketCount,
+          others: data.otherItems ? data.otherItems.split(',').map(item => item.trim()) : []
+        }
+      };
+      
+      // Create delivery
+      await createDeliveryMutation.mutateAsync(newDelivery);
+      
+      // Update family status
+      await updateFamilyMutation.mutateAsync({
+        ...selectedFamily,
+        status: "blocked",
+        lastDelivery: formatDate(new Date()),
+        blockedBy: {
+          id: currentInstitution.id,
+          name: currentInstitution.name
+        },
+        blockedUntil: blockUntilDate,
+        blockReason: "Recebeu cesta básica"
+      });
+      
+      // Update institution inventory
+      if (currentInstitution.inventory) {
+        const updatedInventory = {
+          ...currentInstitution.inventory,
+          baskets: Math.max(0, currentInstitution.inventory.baskets - data.basketCount)
         };
+        
+        await updateInstitutionMutation.mutateAsync({
+          ...currentInstitution,
+          availableBaskets: Math.max(0, currentInstitution.availableBaskets - data.basketCount),
+          inventory: updatedInventory
+        });
       }
-      return inst;
-    });
-    
-    // Update family's status to blocked
-    const updatedFamilies = families.map(f => {
-      if (f.id === selectedFamily.id) {
-        return {
-          ...f,
-          status: "blocked" as const,
-          lastDelivery: formatDate(new Date()),
-          blockedBy: {
-            id: selectedInstitutionId,
-            name: currentInstitution.name
-          },
-          blockedUntil: blockUntilDate,
-          blockReason: "Recebeu cesta básica"
-        };
-      }
-      return f;
-    });
-    
-    setFamilies(updatedFamilies);
-    setIsDeliveryDialogOpen(false);
-    
-    toast({
-      title: "Entrega realizada",
-      description: `Cesta básica entregue para a família ${selectedFamily.name}`,
-    });
+      
+      setIsDeliveryDialogOpen(false);
+      
+      toast({
+        title: "Entrega realizada",
+        description: `Cesta básica entregue para a família ${selectedFamily.name}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao registrar entrega",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (!user || !currentInstitution) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-lg">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
-      <Header username={username} />
+      <Header username={user.name} />
       
       <main className="pt-20 pb-8 px-4 md:px-8 max-w-[1400px] mx-auto flex-grow">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Gerenciamento de Entregas</h2>
           
-          {/* Institution Selection for Admin */}
-          {isAdmin && (
-            <div className="mb-6">
-              <label htmlFor="institution-select" className="block text-sm font-medium mb-2">
-                Selecionar Instituição
-              </label>
-              <Select
-                value={selectedInstitutionId.toString()}
-                onValueChange={handleInstitutionChange}
-              >
-                <SelectTrigger className="w-full md:w-[300px]">
-                  <SelectValue placeholder="Selecione uma instituição" />
-                </SelectTrigger>
-                <SelectContent>
-                  {institutions.map((institution) => (
-                    <SelectItem
-                      key={institution.id}
-                      value={institution.id.toString()}
-                    >
-                      {institution.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          
           {/* Institution Info Card */}
-          {currentInstitution && (
-            <Card className="mb-6">
-              <CardHeader className="bg-primary text-white">
-                <CardTitle>Instituição Atual</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <p className="font-semibold">{currentInstitution.name}</p>
-                <p className="text-sm text-gray-600 mt-1">{currentInstitution.address}</p>
-                <p className="text-sm text-gray-600">{currentInstitution.phone}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Badge className="bg-green-500">
-                    <Package className="h-3 w-3 mr-1" />
-                    Cestas Disponíveis: {currentInstitution.availableBaskets}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <Card className="mb-6">
+            <CardHeader className="bg-primary text-white">
+              <CardTitle>Sua Instituição</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <p className="font-semibold">{currentInstitution.name}</p>
+              <p className="text-sm text-gray-600 mt-1">{currentInstitution.address}</p>
+              <p className="text-sm text-gray-600">{currentInstitution.phone}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <Badge className="bg-green-500">
+                  <Package className="h-3 w-3 mr-1" />
+                  Cestas Disponíveis: {currentInstitution.availableBaskets}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
           
           {/* Eligible Families Section */}
           <div className="mb-8">
@@ -433,6 +276,8 @@ const DeliveryManagement = () => {
                   <Input
                     placeholder="Buscar família..."
                     className="pl-9 w-[200px]"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
               </div>
@@ -448,12 +293,13 @@ const DeliveryManagement = () => {
                       <TableHead>Membros</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Última Entrega</TableHead>
+                      <TableHead>Bloqueada Por</TableHead>
                       <TableHead>Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredFamilies.length > 0 ? (
-                      filteredFamilies.map((family) => (
+                      filteredFamilies.map((family: Family) => (
                         <TableRow key={family.id}>
                           <TableCell className="font-medium">{family.name}</TableCell>
                           <TableCell>{family.cpf}</TableCell>
@@ -466,6 +312,7 @@ const DeliveryManagement = () => {
                             )}
                           </TableCell>
                           <TableCell>{family.lastDelivery || "Não há registros"}</TableCell>
+                          <TableCell>{family.blockedBy?.name || "-"}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
                               {family.status === "active" ? (
@@ -481,7 +328,7 @@ const DeliveryManagement = () => {
                                   size="sm" 
                                   variant="outline" 
                                   disabled
-                                  title={`Bloqueada até ${family.blockedUntil}`}
+                                  title={`Bloqueada até ${family.blockedUntil} por ${family.blockedBy?.name}`}
                                 >
                                   Bloqueada
                                 </Button>
@@ -492,7 +339,7 @@ const DeliveryManagement = () => {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6 text-gray-500">
+                        <TableCell colSpan={7} className="text-center py-6 text-gray-500">
                           Nenhuma família encontrada com os filtros selecionados.
                         </TableCell>
                       </TableRow>
@@ -505,7 +352,7 @@ const DeliveryManagement = () => {
           
           {/* Recent Deliveries Section */}
           <div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Entregas Recentes</h3>
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">Entregas Recentes - {currentInstitution.name}</h3>
             
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="overflow-x-auto">
@@ -521,8 +368,8 @@ const DeliveryManagement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDeliveries.length > 0 ? (
-                      filteredDeliveries.map((delivery) => (
+                    {institutionDeliveries.length > 0 ? (
+                      institutionDeliveries.map((delivery: Delivery) => (
                         <TableRow key={delivery.id}>
                           <TableCell className="font-medium">{delivery.familyName}</TableCell>
                           <TableCell>{delivery.deliveryDate}</TableCell>
@@ -653,8 +500,10 @@ const DeliveryManagement = () => {
                   <Button 
                     type="submit"
                     className="bg-primary hover:bg-primary/90"
+                    disabled={createDeliveryMutation.isPending}
                   >
-                    <Check className="h-4 w-4 mr-1" /> Confirmar Entrega
+                    <Check className="h-4 w-4 mr-1" /> 
+                    {createDeliveryMutation.isPending ? "Processando..." : "Confirmar Entrega"}
                   </Button>
                 </DialogFooter>
               </form>

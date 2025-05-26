@@ -7,6 +7,12 @@ interface User {
   name: string;
   type: 'admin' | 'normal';
   institution_id?: number;
+  institution?: {
+    id: number;
+    name: string;
+    address: string;
+    phone: string;
+  };
 }
 
 interface AuthContextType {
@@ -41,19 +47,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost:3001/users');
-      const users = await response.json();
+      const [usersResponse, institutionsResponse] = await Promise.all([
+        fetch('http://localhost:3001/users'),
+        fetch('http://localhost:3001/institutions')
+      ]);
+      
+      const users = await usersResponse.json();
+      const institutions = await institutionsResponse.json();
       
       const foundUser = users.find((u: any) => u.email === email && u.password === password);
       
       if (foundUser) {
+        const userInstitution = foundUser.institution_id 
+          ? institutions.find((inst: any) => inst.id === foundUser.institution_id)
+          : null;
+
         const userWithoutPassword = {
           id: foundUser.id,
           email: foundUser.email,
           name: foundUser.name,
           type: foundUser.type,
-          institution_id: foundUser.institution_id
+          institution_id: foundUser.institution_id,
+          institution: userInstitution
         };
+        
         setUser(userWithoutPassword);
         localStorage.setItem('user', JSON.stringify(userWithoutPassword));
         return true;
