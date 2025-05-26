@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -235,7 +236,7 @@ const Institutions = () => {
                         {Object.entries(institution.inventory).slice(0, 3).map(([item, quantity]) => (
                           <div key={item} className="flex justify-between">
                             <span className="capitalize">{item}:</span>
-                            <span>{quantity}</span>
+                            <span>{String(quantity)}</span>
                           </div>
                         ))}
                         {Object.keys(institution.inventory).length > 3 && (
@@ -486,7 +487,7 @@ const Institutions = () => {
                   {selectedInstitution?.inventory && Object.entries(selectedInstitution.inventory).map(([item, quantity]) => (
                     <TableRow key={item}>
                       <TableCell className="capitalize">{item}</TableCell>
-                      <TableCell className="text-right">{quantity}</TableCell>
+                      <TableCell className="text-right">{String(quantity)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -547,7 +548,7 @@ const Institutions = () => {
                   {Object.entries(selectedInstitution.inventory).map(([item, quantity]) => (
                     <TableRow key={item}>
                       <TableCell className="capitalize">{item}</TableCell>
-                      <TableCell className="text-right">{quantity}</TableCell>
+                      <TableCell className="text-right">{String(quantity)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
