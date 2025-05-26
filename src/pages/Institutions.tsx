@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -162,7 +163,7 @@ const Institutions = () => {
       <main className="pt-20 pb-8 px-4 md:px-8 max-w-[1400px] mx-auto flex-grow">
         <div className="mb-8">
           {/* Page title and add new institution button */}
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <h2 className="text-2xl font-bold text-gray-800">Instituições</h2>
             <Button 
               className="bg-primary hover:bg-primary/90"
@@ -365,7 +366,7 @@ const Institutions = () => {
                         {...field} 
                         value={field.value} 
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} 
-                        disabled={!isAdmin} // Only admins can edit this field
+                        disabled={isAdmin} // Only normal users can edit this field
                       />
                     </FormControl>
                     <FormMessage />

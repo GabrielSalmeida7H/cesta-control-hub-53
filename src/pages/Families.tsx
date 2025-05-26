@@ -1,6 +1,7 @@
+
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Users, UserPlus, Search, Lock, Unlock } from "lucide-react";
+import { Users, UserPlus, Search, Lock, Unlock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,11 +14,12 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFamilies, useCreateFamily, useUpdateFamily } from "@/hooks/useApi";
 
-// Updated interface for families with blocking information
+// Updated interface for families with blocking information and multiple CPFs
 interface Family {
   id: number;
   name: string;
   cpf: string;
+  additionalCpfs: string[]; // Array for additional family member CPFs
   address: string;
   members: number;
   lastDelivery: string;
@@ -33,6 +35,7 @@ interface Family {
 interface FamilyFormData {
   name: string;
   cpf: string;
+  additionalCpfs: string[];
   address: string;
   members: number;
 }
@@ -48,21 +51,42 @@ const Families = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isUnblockDialogOpen, setIsUnblockDialogOpen] = useState(false);
   const [isNewFamilyDialogOpen, setIsNewFamilyDialogOpen] = useState(false);
+  const [additionalCpfs, setAdditionalCpfs] = useState<string[]>([]);
 
   const form = useForm<FamilyFormData>({
     defaultValues: {
       name: "",
       cpf: "",
+      additionalCpfs: [],
       address: "",
       members: 1,
     }
   });
+
+  // Function to add a new CPF field
+  const addCpfField = () => {
+    setAdditionalCpfs([...additionalCpfs, ""]);
+  };
+
+  // Function to remove a CPF field
+  const removeCpfField = (index: number) => {
+    const newCpfs = additionalCpfs.filter((_, i) => i !== index);
+    setAdditionalCpfs(newCpfs);
+  };
+
+  // Function to update a CPF value
+  const updateCpfField = (index: number, value: string) => {
+    const newCpfs = [...additionalCpfs];
+    newCpfs[index] = value;
+    setAdditionalCpfs(newCpfs);
+  };
 
   // Function to create a new family
   const handleCreateFamily = async (data: FamilyFormData) => {
     try {
       const newFamily = {
         ...data,
+        additionalCpfs,
         status: "active",
         lastDelivery: "Nunca",
       };
@@ -76,6 +100,7 @@ const Families = () => {
       
       setIsNewFamilyDialogOpen(false);
       form.reset();
+      setAdditionalCpfs([]);
     } catch (error) {
       toast({
         title: "Erro ao criar família",
@@ -226,7 +251,7 @@ const Families = () => {
       
       {/* New Family Dialog */}
       <Dialog open={isNewFamilyDialogOpen} onOpenChange={setIsNewFamilyDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Família</DialogTitle>
           </DialogHeader>
@@ -260,6 +285,40 @@ const Families = () => {
                   </FormItem>
                 )}
               />
+
+              {/* Additional CPFs Section */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <FormLabel>CPFs dos Membros Adicionais</FormLabel>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCpfField}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" /> Adicionar CPF
+                  </Button>
+                </div>
+                
+                {additionalCpfs.map((cpf, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="000.000.000-00"
+                      value={cpf}
+                      onChange={(e) => updateCpfField(index, e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeCpfField(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
               
               <FormField
                 control={form.control}
@@ -299,7 +358,10 @@ const Families = () => {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => setIsNewFamilyDialogOpen(false)}
+                  onClick={() => {
+                    setIsNewFamilyDialogOpen(false);
+                    setAdditionalCpfs([]);
+                  }}
                 >
                   Cancelar
                 </Button>
