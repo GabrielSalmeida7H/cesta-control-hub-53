@@ -18,6 +18,18 @@ const Reports = () => {
   const { data: deliveries = [] } = useDeliveries();
   const [isExporting, setIsExporting] = useState(false);
 
+  // Helper function to safely parse inventory
+  const parseInventory = (inventory: any) => {
+    if (typeof inventory === 'string') {
+      try {
+        return JSON.parse(inventory);
+      } catch {
+        return { baskets: 0 };
+      }
+    }
+    return inventory || { baskets: 0 };
+  };
+
   const handleExportFamilies = async () => {
     setIsExporting(true);
     try {
@@ -82,7 +94,8 @@ const Reports = () => {
   const activeFamilies = families.filter(f => f.status === 'active').length;
   const blockedFamilies = families.filter(f => f.status === 'blocked').length;
   const totalBaskets = institutions.reduce((sum, inst) => {
-    return sum + (inst.inventory?.baskets || 0);
+    const inventory = parseInventory(inst.inventory);
+    return sum + (inventory.baskets || 0);
   }, 0);
   const deliveriesThisMonth = deliveries.filter(d => {
     const deliveryDate = new Date(d.delivery_date);
