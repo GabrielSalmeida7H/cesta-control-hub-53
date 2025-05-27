@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -16,12 +15,10 @@ import { useInstitutions, useCreateInstitution, useUpdateInstitution, useUpdateI
 
 // Interface for our institution data model
 interface Institution {
-  id: number;
+  id: string;
   name: string;
   address: string; 
   phone: string;
-  availableBaskets: number;
-  color: string;
   inventory?: {
     baskets: number;
     [key: string]: number;
@@ -74,7 +71,6 @@ const Institutions = () => {
       name: "",
       address: "",
       phone: "",
-      availableBaskets: 0,
     }
   });
 
@@ -91,8 +87,6 @@ const Institutions = () => {
       name: institution.name,
       address: institution.address,
       phone: institution.phone,
-      availableBaskets: institution.availableBaskets,
-      color: institution.color
     });
     setIsEditDialogOpen(true);
   };
@@ -163,7 +157,6 @@ const Institutions = () => {
     try {
       const newInstitution = {
         ...data,
-        color: "bg-primary",
         inventory: {
           baskets: data.availableBaskets,
         }
@@ -220,13 +213,13 @@ const Institutions = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {userInstitutions.map((institution) => (
               <Card key={institution.id} className="overflow-hidden">
-                <CardHeader className={`${institution.color} text-white`}>
+                <CardHeader className="bg-primary text-white">
                   <CardTitle>{institution.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
                   <p className="mb-2"><strong>Endereço:</strong> {institution.address}</p>
                   <p className="mb-2"><strong>Telefone:</strong> {institution.phone}</p>
-                  <p className="mb-4"><strong>Cestas disponíveis:</strong> {institution.availableBaskets}</p>
+                  <p className="mb-4"><strong>Cestas disponíveis:</strong> {institution.inventory?.baskets || 0}</p>
                   
                   {/* Inventory preview */}
                   {institution.inventory && (
@@ -423,26 +416,6 @@ const Institutions = () => {
                       <FormLabel>Telefone</FormLabel>
                       <FormControl>
                         <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={editForm.control}
-                  name="availableBaskets"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cestas Disponíveis</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field} 
-                          value={field.value} 
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} 
-                          disabled={isAdmin} // Only normal users can edit this field
-                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

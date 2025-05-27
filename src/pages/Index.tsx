@@ -48,7 +48,7 @@ const Index = () => {
   const institutionFamilies = user.type === 'admin' 
     ? families 
     : families?.filter((f: any) => 
-        f.deliveries?.some((d: any) => d.institutionId === user.institution_id)
+        f.deliveries?.some((d: any) => d.institution_id === user.institution_id)
       );
   
   const activeFamilies = institutionFamilies?.filter((f: any) => f.status === "active")?.length || 0;

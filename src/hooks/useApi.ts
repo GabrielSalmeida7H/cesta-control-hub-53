@@ -1,15 +1,19 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-const API_BASE_URL = 'http://localhost:3001';
+import { supabase } from '@/integrations/supabase/client';
 
 // Hook para buscar famílias
 export const useFamilies = () => {
   return useQuery({
     queryKey: ['families'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/families`);
-      return response.json();
+      const { data, error } = await supabase
+        .from('families')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
     },
   });
 };
@@ -19,8 +23,13 @@ export const useInstitutions = () => {
   return useQuery({
     queryKey: ['institutions'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/institutions`);
-      return response.json();
+      const { data, error } = await supabase
+        .from('institutions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
     },
   });
 };
@@ -30,20 +39,32 @@ export const useDeliveries = () => {
   return useQuery({
     queryKey: ['deliveries'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/deliveries`);
-      return response.json();
+      const { data, error } = await supabase
+        .from('deliveries')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
     },
   });
 };
 
 // Hook para buscar entregas por instituição
-export const useDeliveriesByInstitution = (institutionId?: number) => {
+export const useDeliveriesByInstitution = (institutionId?: string) => {
   return useQuery({
     queryKey: ['deliveries', 'institution', institutionId],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/deliveries`);
-      const deliveries = await response.json();
-      return institutionId ? deliveries.filter((d: any) => d.institutionId === institutionId) : deliveries;
+      if (!institutionId) return [];
+      
+      const { data, error } = await supabase
+        .from('deliveries')
+        .select('*')
+        .eq('institution_id', institutionId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
     },
     enabled: !!institutionId,
   });
@@ -55,14 +76,14 @@ export const useCreateFamily = () => {
   
   return useMutation({
     mutationFn: async (family: any) => {
-      const response = await fetch(`${API_BASE_URL}/families`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(family),
-      });
-      return response.json();
+      const { data, error } = await supabase
+        .from('families')
+        .insert([family])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['families'] });
@@ -76,14 +97,17 @@ export const useCreateInstitution = () => {
   
   return useMutation({
     mutationFn: async (institution: any) => {
-      const response = await fetch(`${API_BASE_URL}/institutions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(institution),
-      });
-      return response.json();
+      const { data, error } = await supabase
+        .from('institutions')
+        .insert([{
+          ...institution,
+          inventory: institution.inventory || { baskets: institution.availableBaskets || 0 }
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['institutions'] });
@@ -97,14 +121,15 @@ export const useUpdateFamily = () => {
   
   return useMutation({
     mutationFn: async (family: any) => {
-      const response = await fetch(`${API_BASE_URL}/families/${family.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(family),
-      });
-      return response.json();
+      const { data, error } = await supabase
+        .from('families')
+        .update(family)
+        .eq('id', family.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['families'] });
@@ -118,14 +143,15 @@ export const useUpdateInstitution = () => {
   
   return useMutation({
     mutationFn: async (institution: any) => {
-      const response = await fetch(`${API_BASE_URL}/institutions/${institution.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(institution),
-      });
-      return response.json();
+      const { data, error } = await supabase
+        .from('institutions')
+        .update(institution)
+        .eq('id', institution.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['institutions'] });
@@ -139,14 +165,14 @@ export const useCreateDelivery = () => {
   
   return useMutation({
     mutationFn: async (delivery: any) => {
-      const response = await fetch(`${API_BASE_URL}/deliveries`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(delivery),
-      });
-      return response.json();
+      const { data, error } = await supabase
+        .from('deliveries')
+        .insert([delivery])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deliveries'] });
@@ -159,15 +185,16 @@ export const useUpdateInventory = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ institutionId, inventory }: { institutionId: number, inventory: any }) => {
-      const response = await fetch(`${API_BASE_URL}/institutions/${institutionId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ inventory }),
-      });
-      return response.json();
+    mutationFn: async ({ institutionId, inventory }: { institutionId: string, inventory: any }) => {
+      const { data, error } = await supabase
+        .from('institutions')
+        .update({ inventory })
+        .eq('id', institutionId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['institutions'] });

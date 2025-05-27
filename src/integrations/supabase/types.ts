@@ -9,7 +9,152 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      deliveries: {
+        Row: {
+          created_at: string | null
+          delivery_date: string
+          family_id: string
+          family_name: string
+          id: string
+          institution_id: string
+          institution_name: string
+          items: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivery_date: string
+          family_id: string
+          family_name: string
+          id?: string
+          institution_id: string
+          institution_name: string
+          items?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          delivery_date?: string
+          family_id?: string
+          family_name?: string
+          id?: string
+          institution_id?: string
+          institution_name?: string
+          items?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      families: {
+        Row: {
+          address: string
+          blocked_until: string | null
+          created_at: string | null
+          id: string
+          income: number
+          members: number
+          name: string
+          phone: string
+          status: string
+        }
+        Insert: {
+          address: string
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          income: number
+          members: number
+          name: string
+          phone: string
+          status?: string
+        }
+        Update: {
+          address?: string
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          income?: number
+          members?: number
+          name?: string
+          phone?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      institutions: {
+        Row: {
+          address: string
+          created_at: string | null
+          id: string
+          inventory: Json | null
+          name: string
+          phone: string
+        }
+        Insert: {
+          address: string
+          created_at?: string | null
+          id?: string
+          inventory?: Json | null
+          name: string
+          phone: string
+        }
+        Update: {
+          address?: string
+          created_at?: string | null
+          id?: string
+          inventory?: Json | null
+          name?: string
+          phone?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          institution_id: string | null
+          name: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          institution_id?: string | null
+          name: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          institution_id?: string | null
+          name?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_users_institution"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

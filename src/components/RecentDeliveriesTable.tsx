@@ -5,7 +5,7 @@ import { useDeliveriesByInstitution, useDeliveries } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface RecentDeliveriesTableProps {
-  institutionId?: number;
+  institutionId?: string;
 }
 
 const RecentDeliveriesTable = ({ institutionId }: RecentDeliveriesTableProps) => {
@@ -19,10 +19,14 @@ const RecentDeliveriesTable = ({ institutionId }: RecentDeliveriesTableProps) =>
 
   // Ordenar entregas por data mais recente
   const sortedDeliveries = deliveries?.slice().sort((a: any, b: any) => {
-    const dateA = new Date(a.deliveryDate.split('/').reverse().join('-'));
-    const dateB = new Date(b.deliveryDate.split('/').reverse().join('-'));
+    const dateA = new Date(a.delivery_date);
+    const dateB = new Date(b.delivery_date);
     return dateB.getTime() - dateA.getTime();
   }).slice(0, 8) || []; // Mostrar apenas as 8 mais recentes
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
 
   return (
     <Card className="shadow-md overflow-hidden">
@@ -48,9 +52,9 @@ const RecentDeliveriesTable = ({ institutionId }: RecentDeliveriesTableProps) =>
             {sortedDeliveries.length > 0 ? (
               sortedDeliveries.map((delivery: any) => (
                 <TableRow key={delivery.id}>
-                  <TableCell className="font-medium">{delivery.familyName}</TableCell>
-                  <TableCell>{delivery.deliveryDate}</TableCell>
-                  <TableCell>{delivery.institutionName}</TableCell>
+                  <TableCell className="font-medium">{delivery.family_name}</TableCell>
+                  <TableCell>{formatDate(delivery.delivery_date)}</TableCell>
+                  <TableCell>{delivery.institution_name}</TableCell>
                   <TableCell className="text-right">{delivery.items?.baskets || 1}</TableCell>
                 </TableRow>
               ))

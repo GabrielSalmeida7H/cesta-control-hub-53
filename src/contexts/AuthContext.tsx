@@ -1,14 +1,16 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabase/supabase-js';
 
-interface User {
-  id: number;
+interface AuthUser {
+  id: string;
   email: string;
   name: string;
   type: 'admin' | 'normal';
-  institution_id?: number;
+  institution_id?: string;
   institution?: {
-    id: number;
+    id: string;
     name: string;
     address: string;
     phone: string;
@@ -16,7 +18,7 @@ interface User {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
@@ -33,59 +35,154 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar se há usuário logado no localStorage
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session);
+        setSession(session);
+        
+        if (session?.user) {
+          // Fetch user profile data
+          setTimeout(async () => {
+            await fetchUserProfile(session.user.id);
+          }, 0);
+        } else {
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select(`
+          *,
+          institution:institutions(*)
+        `)
+        .eq('id', userId)
+        .single();
+
+      if (userError) {
+        console.error('Error fetching user profile:', userError);
+        return;
+      }
+
+      if (userData) {
+        const authUser: AuthUser = {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          type: userData.type,
+          institution_id: userData.institution_id,
+          institution: userData.institution ? {
+            id: userData.institution.id,
+            name: userData.institution.name,
+            address: userData.institution.address,
+            phone: userData.institution.phone,
+          } : undefined
+        };
+        
+        setUser(authUser);
+      }
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+    }
+  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const [usersResponse, institutionsResponse] = await Promise.all([
-        fetch('http://localhost:3001/users'),
-        fetch('http://localhost:3001/institutions')
-      ]);
-      
-      const users = await usersResponse.json();
-      const institutions = await institutionsResponse.json();
-      
-      const foundUser = users.find((u: any) => u.email === email && u.password === password);
-      
-      if (foundUser) {
-        const userInstitution = foundUser.institution_id 
-          ? institutions.find((inst: any) => inst.id === foundUser.institution_id)
-          : null;
+      // First check if user exists in our users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
 
-        const userWithoutPassword = {
-          id: foundUser.id,
-          email: foundUser.email,
-          name: foundUser.name,
-          type: foundUser.type,
-          institution_id: foundUser.institution_id,
-          institution: userInstitution
-        };
-        
-        setUser(userWithoutPassword);
-        localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-        return true;
+      if (userError || !userData) {
+        console.error('User not found in users table:', userError);
+        return false;
       }
-      return false;
+
+      // For demo purposes, we'll do a simple password check
+      // In production, you should use proper Supabase Auth
+      const validCredentials = 
+        (email === 'admin@araguari.mg.gov.br' && password === 'admin123') ||
+        (email === 'user@araguari.mg.gov.br' && password === 'user123');
+
+      if (!validCredentials) {
+        return false;
+      }
+
+      // Create a mock session for demo
+      const authUser: AuthUser = {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        type: userData.type,
+        institution_id: userData.institution_id,
+      };
+
+      // Fetch institution data if user has one
+      if (userData.institution_id) {
+        const { data: institutionData } = await supabase
+          .from('institutions')
+          .select('*')
+          .eq('id', userData.institution_id)
+          .single();
+
+        if (institutionData) {
+          authUser.institution = {
+            id: institutionData.id,
+            name: institutionData.name,
+            address: institutionData.address,
+            phone: institutionData.phone,
+          };
+        }
+      }
+
+      setUser(authUser);
+      localStorage.setItem('demoUser', JSON.stringify(authUser));
+      return true;
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error('Error in login:', error);
       return false;
     }
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    setSession(null);
+    localStorage.removeItem('demoUser');
   };
+
+  // Check for demo user in localStorage on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('demoUser');
+    if (savedUser && !user) {
+      setUser(JSON.parse(savedUser));
+    }
+    setIsLoading(false);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isLoading }}>

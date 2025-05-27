@@ -17,7 +17,7 @@ import { useDeliveriesByInstitution, useDeliveries } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface DeliveriesChartProps {
-  institutionId?: number;
+  institutionId?: string;
 }
 
 const DeliveriesChart = ({ institutionId }: DeliveriesChartProps) => {
@@ -37,7 +37,7 @@ const DeliveriesChart = ({ institutionId }: DeliveriesChartProps) => {
     const monthlyData: { [key: string]: number } = {};
     
     deliveries.forEach((delivery: any) => {
-      const date = new Date(delivery.deliveryDate.split('/').reverse().join('-'));
+      const date = new Date(delivery.delivery_date);
       const monthKey = date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
       
       monthlyData[monthKey] = (monthlyData[monthKey] || 0) + (delivery.items?.baskets || 1);
