@@ -1,4 +1,3 @@
-
 import { Package, Users, Building, AlertTriangle } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -10,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFamilies, useInstitutions, useDeliveriesByInstitution, useDeliveries } from "@/hooks/useApi";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import MockDataGenerator from "@/components/MockDataGenerator";
 
 const Index = () => {
   const { user, isLoading: authLoading } = useAuth();
@@ -56,21 +56,25 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
-      <Header username={user.name} />
+      <Header username={user?.name || ""} />
       
-      <main className="pt-20 pb-8 px-4 md:px-8 max-w-[1400px] mx-auto w-full flex-grow">
+      <main className="pt-20 pb-8 px-4 md:px-8 max-w-[1400px] mx-auto flex-grow">
         <div className="mb-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">Painel de Controle</h2>
-            {user.institution && (
-              <div className="text-sm text-gray-600">
-                Instituição: <span className="font-semibold">{user.institution.name}</span>
-              </div>
-            )}
+          {/* Welcome Section */}
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              Bem-vindo ao Sistema de Gestão de Cestas Básicas
+            </h2>
+            <p className="text-gray-600">
+              {user?.type === 'admin' 
+                ? 'Como administrador, você tem acesso completo ao sistema.' 
+                : `Olá ${user?.name}, você está conectado à ${user?.institution_id ? 'sua instituição' : 'plataforma'}.`
+              }
+            </p>
           </div>
-          
-          {/* Dashboard Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <DashboardCard 
               title="Cestas Entregues no Mês" 
               value={monthlyDeliveries} 
@@ -96,20 +100,21 @@ const Index = () => {
               color="danger"
             />
           </div>
-          
-          {/* Navigation Buttons */}
-          <div className="mb-8">
-            <NavigationButtons />
-          </div>
-          
-          {/* Chart Section */}
-          <div className="mb-8">
+
+          {/* Charts and Recent Data */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <DeliveriesChart institutionId={user.institution_id} />
-          </div>
-          
-          {/* Table Section */}
-          <div className="mb-8">
             <RecentDeliveriesTable institutionId={user.institution_id} />
+          </div>
+
+          {/* Navigation and Mock Data */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <NavigationButtons userType={user?.type || 'normal'} />
+            </div>
+            <div>
+              <MockDataGenerator />
+            </div>
           </div>
         </div>
       </main>
