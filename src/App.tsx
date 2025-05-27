@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -5,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Institutions from "./pages/Institutions";
@@ -52,11 +54,31 @@ const AnimatedRoutes = () => {
     <PageTransition key={location.pathname}>
       <Routes location={location}>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Index />} />
-        <Route path="/institutions" element={<Institutions />} />
-        <Route path="/families" element={<Families />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/delivery" element={<DeliveryManagement />} />
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        } />
+        <Route path="/institutions" element={
+          <ProtectedRoute adminOnly>
+            <Institutions />
+          </ProtectedRoute>
+        } />
+        <Route path="/families" element={
+          <ProtectedRoute>
+            <Families />
+          </ProtectedRoute>
+        } />
+        <Route path="/reports" element={
+          <ProtectedRoute>
+            <Reports />
+          </ProtectedRoute>
+        } />
+        <Route path="/delivery" element={
+          <ProtectedRoute>
+            <DeliveryManagement />
+          </ProtectedRoute>
+        } />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </PageTransition>

@@ -19,8 +19,10 @@ interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
+  session: Session | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  signup: (email: string, password: string, name: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -47,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile data
+          // Defer user profile fetching to avoid deadlock
           setTimeout(async () => {
             await fetchUserProfile(session.user.id);
           }, 0);
@@ -111,81 +113,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // First check if user exists in our users table
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (userError || !userData) {
-        console.error('User not found in users table:', userError);
+      if (error) {
+        console.error('Login error:', error);
         return false;
       }
 
-      // For demo purposes, we'll do a simple password check
-      // In production, you should use proper Supabase Auth
-      const validCredentials = 
-        (email === 'admin@araguari.mg.gov.br' && password === 'admin123') ||
-        (email === 'user@araguari.mg.gov.br' && password === 'user123');
-
-      if (!validCredentials) {
-        return false;
-      }
-
-      // Create a mock session for demo
-      const authUser: AuthUser = {
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        type: userData.type as 'admin' | 'normal',
-        institution_id: userData.institution_id,
-      };
-
-      // Fetch institution data if user has one
-      if (userData.institution_id) {
-        const { data: institutionData } = await supabase
-          .from('institutions')
-          .select('*')
-          .eq('id', userData.institution_id)
-          .single();
-
-        if (institutionData) {
-          authUser.institution = {
-            id: institutionData.id,
-            name: institutionData.name,
-            address: institutionData.address,
-            phone: institutionData.phone,
-          };
-        }
-      }
-
-      setUser(authUser);
-      localStorage.setItem('demoUser', JSON.stringify(authUser));
-      return true;
+      return !!data.user;
     } catch (error) {
       console.error('Error in login:', error);
       return false;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setSession(null);
-    localStorage.removeItem('demoUser');
+  const signup = async (email: string, password: string, name: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Signup error:', error);
+        return false;
+      }
+
+      return !!data.user;
+    } catch (error) {
+      console.error('Error in signup:', error);
+      return false;
+    }
   };
 
-  // Check for demo user in localStorage on mount
-  useEffect(() => {
-    const savedUser = localStorage.getItem('demoUser');
-    if (savedUser && !user) {
-      setUser(JSON.parse(savedUser));
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+    } catch (error) {
+      console.error('Error in logout:', error);
     }
-    setIsLoading(false);
-  }, []);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, login, signup, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -13,7 +13,6 @@ import MockDataGenerator from "@/components/MockDataGenerator";
 
 const Index = () => {
   const { user, isLoading: authLoading } = useAuth();
-  const navigate = useNavigate();
   
   const { data: families, isLoading: familiesLoading } = useFamilies();
   const { data: institutions, isLoading: institutionsLoading } = useInstitutions();
@@ -23,12 +22,6 @@ const Index = () => {
   const { data: allDeliveries } = useDeliveries();
   
   const deliveries = user?.type === 'admin' ? allDeliveries : userDeliveries;
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/login");
-    }
-  }, [user, authLoading, navigate]);
 
   if (authLoading || !user) {
     return <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -68,7 +61,7 @@ const Index = () => {
             <p className="text-gray-600">
               {user?.type === 'admin' 
                 ? 'Como administrador, você tem acesso completo ao sistema.' 
-                : `Olá ${user?.name}, você está conectado à ${user?.institution_id ? 'sua instituição' : 'plataforma'}.`
+                : `Olá ${user?.name}, você está conectado à ${user?.institution?.name || 'plataforma'}.`
               }
             </p>
           </div>

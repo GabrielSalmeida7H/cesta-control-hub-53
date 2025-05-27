@@ -4,17 +4,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Footer from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, signup, user } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +50,38 @@ const Login = () => {
     } catch (error) {
       toast({
         title: "Erro de conexão",
-        description: "Verifique se o servidor está rodando.",
+        description: "Verifique sua conexão com a internet.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const success = await signup(email, password, name);
+      
+      if (success) {
+        toast({
+          title: "Cadastro realizado com sucesso!",
+          description: "Verifique seu email para confirmar a conta.",
+        });
+        setActiveTab("login");
+      } else {
+        toast({
+          title: "Erro no cadastro",
+          description: "Verifique os dados informados.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro de conexão",
+        description: "Verifique sua conexão com a internet.",
         variant: "destructive",
       });
     } finally {
@@ -72,52 +114,98 @@ const Login = () => {
           </CardHeader>
           
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Digite seu email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoFocus
-                />
-              </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Entrar</TabsTrigger>
+                <TabsTrigger value="signup">Cadastrar</TabsTrigger>
+              </TabsList>
               
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Senha</Label>
-                  <a 
-                    href="#" 
-                    className="text-sm text-primary hover:underline"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert("Função de recuperação de senha será implementada em breve.");
-                    }}
+              <TabsContent value="login">
+                <form onSubmit={handleLogin} className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">Email</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="Digite seu email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="login-password">Senha</Label>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      placeholder="Digite sua senha"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-primary hover:bg-primary/90" 
+                    disabled={loading}
                   >
-                    Esqueceu a senha?
-                  </a>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Digite sua senha"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
+                    {loading ? "Entrando..." : "Entrar"}
+                  </Button>
+                </form>
+              </TabsContent>
               
-              <Button 
-                type="submit" 
-                className="w-full bg-primary hover:bg-primary/90" 
-                disabled={loading}
-              >
-                {loading ? "Entrando..." : "Entrar"}
-              </Button>
-            </form>
+              <TabsContent value="signup">
+                <form onSubmit={handleSignup} className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Nome Completo</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="Digite seu nome completo"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="Digite seu email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Senha</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      placeholder="Digite sua senha (mín. 6 caracteres)"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-primary hover:bg-primary/90" 
+                    disabled={loading}
+                  >
+                    {loading ? "Cadastrando..." : "Cadastrar"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
           </CardContent>
           
           <CardFooter className="flex justify-center">
@@ -126,9 +214,7 @@ const Login = () => {
                 © {new Date().getFullYear()} - Secretaria de Assistência Social
               </div>
               <div className="text-xs text-muted-foreground">
-                <p><strong>Credenciais de teste:</strong></p>
-                <p>Admin: admin@araguari.mg.gov.br / admin123</p>
-                <p>Usuário: user@araguari.mg.gov.br / user123</p>
+                Sistema de controle de distribuição de cestas básicas
               </div>
             </div>
           </CardFooter>
