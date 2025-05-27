@@ -12,8 +12,12 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInstitutions, useCreateInstitution, useUpdateInstitution, useUpdateInventory } from "@/hooks/useApi";
+import { Tables } from "@/integrations/supabase/types";
 
-// Interface for our institution data model
+// Use Supabase type for institutions
+type SupabaseInstitution = Tables<'institutions'>;
+
+// Interface for our institution data model (for local use)
 interface Institution {
   id: string;
   name: string;
@@ -37,12 +41,34 @@ interface InventoryItem {
   quantity: number;
 }
 
+// Helper function to safely parse inventory
+const parseInventory = (inventory: any): { baskets: number; [key: string]: number } => {
+  if (!inventory || typeof inventory !== 'object') {
+    return { baskets: 0 };
+  }
+  return inventory as { baskets: number; [key: string]: number };
+};
+
+// Helper function to convert Supabase institution to local Institution type
+const convertSupabaseInstitution = (supabaseInst: SupabaseInstitution): Institution => {
+  return {
+    id: supabaseInst.id,
+    name: supabaseInst.name,
+    address: supabaseInst.address,
+    phone: supabaseInst.phone,
+    inventory: parseInventory(supabaseInst.inventory)
+  };
+};
+
 const Institutions = () => {
   const { user } = useAuth();
-  const { data: institutions = [], isLoading } = useInstitutions();
+  const { data: supabaseInstitutions = [], isLoading } = useInstitutions();
   const createInstitutionMutation = useCreateInstitution();
   const updateInstitutionMutation = useUpdateInstitution();
   const updateInventoryMutation = useUpdateInventory();
+  
+  // Convert Supabase institutions to local format
+  const institutions: Institution[] = supabaseInstitutions.map(convertSupabaseInstitution);
   
   // Derive isAdmin from user type
   const isAdmin = user?.type === 'admin';
