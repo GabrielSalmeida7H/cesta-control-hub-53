@@ -16,53 +16,47 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFamilies, useInstitutions, useDeliveriesByInstitution, useCreateDelivery, useUpdateFamily, useUpdateInstitution } from "@/hooks/useApi";
 
-// Interfaces
+// Updated interfaces to match Supabase schema
 interface Family {
-  id: number;
-  name: string;
-  cpf: string;
-  address: string;
-  members: number;
-  lastDelivery: string | null;
-  status: "active" | "blocked";
-  blockedBy?: {
-    id: number;
-    name: string;
-  };
-  blockedUntil?: string;
-  blockReason?: string;
-  institutionIds: number[];
-}
-
-interface Institution {
-  id: number;
+  id: string;
   name: string;
   address: string;
   phone: string;
-  availableBaskets: number;
-  inventory?: {
+  members: number;
+  income: number;
+  status: "active" | "blocked";
+  blocked_until?: string;
+  created_at: string;
+}
+
+interface Institution {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  inventory: {
     baskets: number;
     [key: string]: number;
   };
+  created_at: string;
 }
 
 interface Delivery {
-  id: number;
-  familyId: number;
-  familyName: string;
-  institutionId: number;
-  institutionName: string;
-  deliveryDate: string;
-  blockPeriod: number;
-  blockUntil: string;
+  id: string;
+  family_id: string;
+  institution_id: string;
+  family_name: string;
+  institution_name: string;
+  delivery_date: string;
   items: {
     baskets: number;
-    others: string[];
+    others?: string[];
   };
+  created_at: string;
 }
 
 interface DeliveryFormValues {
-  familyId: number;
+  familyId: string;
   blockPeriod: string;
   basketCount: number;
   otherItems: string;
@@ -88,28 +82,32 @@ const DeliveryManagement = () => {
   const [filterStatus, setFilterStatus] = useState<string>("active");
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Get current institution
-  const currentInstitution = institutions.find(i => i.id === user?.institution_id);
+  // Get current institution with proper typing
+  const currentInstitution = institutions.find((i: any) => i.id === user?.institution_id);
+  const currentInstitutionTyped = currentInstitution ? {
+    ...currentInstitution,
+    inventory: currentInstitution.inventory as { baskets: number; [key: string]: number }
+  } : null;
   
   // Filter families for eligible families (all families are shared)
-  const filteredFamilies = families.filter((family: Family) => {
+  const filteredFamilies = families.filter((family: any) => {
     const statusMatch = filterStatus === "all" || family.status === filterStatus;
     const searchMatch = family.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       family.cpf.includes(searchTerm);
+                       family.phone.includes(searchTerm);
     return statusMatch && searchMatch;
   });
   
   // Filter deliveries for this institution only
   const institutionDeliveries = deliveries.sort((a: any, b: any) => {
-    const dateA = new Date(a.deliveryDate.split('/').reverse().join('-'));
-    const dateB = new Date(b.deliveryDate.split('/').reverse().join('-'));
+    const dateA = new Date(a.delivery_date);
+    const dateB = new Date(b.delivery_date);
     return dateB.getTime() - dateA.getTime();
   });
   
   // Setup form
   const form = useForm<DeliveryFormValues>({
     defaultValues: {
-      familyId: 0,
+      familyId: "",
       blockPeriod: "30",
       basketCount: 1,
       otherItems: ""
@@ -117,7 +115,7 @@ const DeliveryManagement = () => {
   });
 
   // Open delivery dialog for a family
-  const handleDelivery = (family: Family) => {
+  const handleDelivery = (family: any) => {
     setSelectedFamily(family);
     form.reset({
       familyId: family.id,
@@ -129,8 +127,12 @@ const DeliveryManagement = () => {
   };
   
   // Handle delivery details view
-  const handleViewDeliveryDetails = (delivery: Delivery) => {
-    setSelectedDelivery(delivery);
+  const handleViewDeliveryDetails = (delivery: any) => {
+    const deliveryTyped = {
+      ...delivery,
+      items: delivery.items as { baskets: number; others?: string[] }
+    };
+    setSelectedDelivery(deliveryTyped);
     setIsDetailsDialogOpen(true);
   };
   
@@ -147,12 +149,12 @@ const DeliveryManagement = () => {
     const today = new Date();
     const blockUntil = new Date(today);
     blockUntil.setDate(today.getDate() + blockPeriod);
-    return formatDate(blockUntil);
+    return blockUntil.toISOString().split('T')[0]; // Return YYYY-MM-DD format for database
   };
 
   // Process delivery submission
   const onSubmit = async (data: DeliveryFormValues) => {
-    if (!selectedFamily || !currentInstitution || !user) return;
+    if (!selectedFamily || !currentInstitutionTyped || !user) return;
     
     try {
       const blockPeriod = parseInt(data.blockPeriod);
@@ -160,13 +162,11 @@ const DeliveryManagement = () => {
       
       // Create new delivery record
       const newDelivery = {
-        familyId: selectedFamily.id,
-        familyName: selectedFamily.name,
-        institutionId: currentInstitution.id,
-        institutionName: currentInstitution.name,
-        deliveryDate: formatDate(new Date()),
-        blockPeriod,
-        blockUntil: blockUntilDate,
+        family_id: selectedFamily.id,
+        family_name: selectedFamily.name,
+        institution_id: currentInstitutionTyped.id,
+        institution_name: currentInstitutionTyped.name,
+        delivery_date: new Date().toISOString().split('T')[0],
         items: {
           baskets: data.basketCount,
           others: data.otherItems ? data.otherItems.split(',').map(item => item.trim()) : []
@@ -180,25 +180,18 @@ const DeliveryManagement = () => {
       await updateFamilyMutation.mutateAsync({
         ...selectedFamily,
         status: "blocked",
-        lastDelivery: formatDate(new Date()),
-        blockedBy: {
-          id: currentInstitution.id,
-          name: currentInstitution.name
-        },
-        blockedUntil: blockUntilDate,
-        blockReason: "Recebeu cesta básica"
+        blocked_until: blockUntilDate
       });
       
       // Update institution inventory
-      if (currentInstitution.inventory) {
+      if (currentInstitutionTyped.inventory) {
         const updatedInventory = {
-          ...currentInstitution.inventory,
-          baskets: Math.max(0, currentInstitution.inventory.baskets - data.basketCount)
+          ...currentInstitutionTyped.inventory,
+          baskets: Math.max(0, currentInstitutionTyped.inventory.baskets - data.basketCount)
         };
         
         await updateInstitutionMutation.mutateAsync({
-          ...currentInstitution,
-          availableBaskets: Math.max(0, currentInstitution.availableBaskets - data.basketCount),
+          ...currentInstitutionTyped,
           inventory: updatedInventory
         });
       }
@@ -218,7 +211,7 @@ const DeliveryManagement = () => {
     }
   };
 
-  if (!user || !currentInstitution) {
+  if (!user || !currentInstitutionTyped) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-lg">Carregando...</div>
@@ -240,13 +233,13 @@ const DeliveryManagement = () => {
               <CardTitle>Sua Instituição</CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
-              <p className="font-semibold">{currentInstitution.name}</p>
-              <p className="text-sm text-gray-600 mt-1">{currentInstitution.address}</p>
-              <p className="text-sm text-gray-600">{currentInstitution.phone}</p>
+              <p className="font-semibold">{currentInstitutionTyped.name}</p>
+              <p className="text-sm text-gray-600 mt-1">{currentInstitutionTyped.address}</p>
+              <p className="text-sm text-gray-600">{currentInstitutionTyped.phone}</p>
               <div className="mt-2 flex items-center gap-2">
                 <Badge className="bg-green-500">
                   <Package className="h-3 w-3 mr-1" />
-                  Cestas Disponíveis: {currentInstitution.availableBaskets}
+                  Cestas Disponíveis: {currentInstitutionTyped.inventory.baskets}
                 </Badge>
               </div>
             </CardContent>
@@ -289,20 +282,19 @@ const DeliveryManagement = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>CPF</TableHead>
+                      <TableHead>Telefone</TableHead>
                       <TableHead>Membros</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Última Entrega</TableHead>
-                      <TableHead>Bloqueada Por</TableHead>
+                      <TableHead>Bloqueada até</TableHead>
                       <TableHead>Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredFamilies.length > 0 ? (
-                      filteredFamilies.map((family: Family) => (
+                      filteredFamilies.map((family: any) => (
                         <TableRow key={family.id}>
                           <TableCell className="font-medium">{family.name}</TableCell>
-                          <TableCell>{family.cpf}</TableCell>
+                          <TableCell>{family.phone}</TableCell>
                           <TableCell>{family.members}</TableCell>
                           <TableCell>
                             {family.status === "active" ? (
@@ -311,15 +303,14 @@ const DeliveryManagement = () => {
                               <Badge className="bg-red-500">Bloqueada</Badge>
                             )}
                           </TableCell>
-                          <TableCell>{family.lastDelivery || "Não há registros"}</TableCell>
-                          <TableCell>{family.blockedBy?.name || "-"}</TableCell>
+                          <TableCell>{family.blocked_until || "-"}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
                               {family.status === "active" ? (
                                 <Button 
                                   size="sm" 
                                   onClick={() => handleDelivery(family)}
-                                  disabled={currentInstitution?.availableBaskets === 0}
+                                  disabled={currentInstitutionTyped.inventory.baskets === 0}
                                 >
                                   <Package className="h-4 w-4 mr-1" /> Entregar Cesta
                                 </Button>
@@ -328,7 +319,7 @@ const DeliveryManagement = () => {
                                   size="sm" 
                                   variant="outline" 
                                   disabled
-                                  title={`Bloqueada até ${family.blockedUntil} por ${family.blockedBy?.name}`}
+                                  title={`Bloqueada até ${family.blocked_until}`}
                                 >
                                   Bloqueada
                                 </Button>
@@ -339,7 +330,7 @@ const DeliveryManagement = () => {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-6 text-gray-500">
+                        <TableCell colSpan={6} className="text-center py-6 text-gray-500">
                           Nenhuma família encontrada com os filtros selecionados.
                         </TableCell>
                       </TableRow>
@@ -352,7 +343,7 @@ const DeliveryManagement = () => {
           
           {/* Recent Deliveries Section */}
           <div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Entregas Recentes - {currentInstitution.name}</h3>
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">Entregas Recentes - {currentInstitutionTyped.name}</h3>
             
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="overflow-x-auto">
@@ -361,35 +352,34 @@ const DeliveryManagement = () => {
                     <TableRow>
                       <TableHead>Família</TableHead>
                       <TableHead>Data da Entrega</TableHead>
-                      <TableHead>Período de Bloqueio</TableHead>
-                      <TableHead>Desbloqueio em</TableHead>
                       <TableHead>Cestas</TableHead>
                       <TableHead>Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {institutionDeliveries.length > 0 ? (
-                      institutionDeliveries.map((delivery: Delivery) => (
-                        <TableRow key={delivery.id}>
-                          <TableCell className="font-medium">{delivery.familyName}</TableCell>
-                          <TableCell>{delivery.deliveryDate}</TableCell>
-                          <TableCell>{delivery.blockPeriod} dias</TableCell>
-                          <TableCell>{delivery.blockUntil}</TableCell>
-                          <TableCell>{delivery.items.baskets}</TableCell>
-                          <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleViewDeliveryDetails(delivery)}
-                            >
-                              Detalhes
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      institutionDeliveries.map((delivery: any) => {
+                        const deliveryItems = delivery.items as { baskets: number; others?: string[] };
+                        return (
+                          <TableRow key={delivery.id}>
+                            <TableCell className="font-medium">{delivery.family_name}</TableCell>
+                            <TableCell>{new Date(delivery.delivery_date).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell>{deliveryItems.baskets}</TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleViewDeliveryDetails(delivery)}
+                              >
+                                Detalhes
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6 text-gray-500">
+                        <TableCell colSpan={4} className="text-center py-6 text-gray-500">
                           Nenhuma entrega registrada por esta instituição.
                         </TableCell>
                       </TableRow>
@@ -415,7 +405,7 @@ const DeliveryManagement = () => {
                 <div className="bg-gray-50 p-3 rounded-md mb-2">
                   <p className="font-semibold">Família: {selectedFamily.name}</p>
                   <p className="text-sm text-gray-600">Membros: {selectedFamily.members} pessoas</p>
-                  <p className="text-sm text-gray-600">CPF: {selectedFamily.cpf}</p>
+                  <p className="text-sm text-gray-600">Telefone: {selectedFamily.phone}</p>
                 </div>
                 
                 <FormField
@@ -428,7 +418,7 @@ const DeliveryManagement = () => {
                         <Input
                           type="number"
                           min={1}
-                          max={currentInstitution?.availableBaskets || 1}
+                          max={currentInstitutionTyped.inventory.baskets || 1}
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                         />
@@ -524,22 +514,11 @@ const DeliveryManagement = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-semibold text-gray-500">Família</p>
-                  <p>{selectedDelivery.familyName}</p>
+                  <p>{selectedDelivery.family_name}</p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-500">Data da Entrega</p>
-                  <p>{selectedDelivery.deliveryDate}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-gray-500">Período de Bloqueio</p>
-                  <p>{selectedDelivery.blockPeriod} dias</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-500">Bloqueada até</p>
-                  <p>{selectedDelivery.blockUntil}</p>
+                  <p>{new Date(selectedDelivery.delivery_date).toLocaleDateString('pt-BR')}</p>
                 </div>
               </div>
               
@@ -548,7 +527,7 @@ const DeliveryManagement = () => {
                 <div className="bg-gray-50 p-3 rounded-md mt-2">
                   <p><strong>Cestas básicas:</strong> {selectedDelivery.items.baskets}</p>
                   
-                  {selectedDelivery.items.others.length > 0 && (
+                  {selectedDelivery.items.others && selectedDelivery.items.others.length > 0 && (
                     <>
                       <p className="mt-2"><strong>Outros itens:</strong></p>
                       <ul className="list-disc pl-5 mt-1">

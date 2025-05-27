@@ -14,30 +14,25 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFamilies, useCreateFamily, useUpdateFamily } from "@/hooks/useApi";
 
-// Updated interface for families with blocking information and multiple CPFs
+// Updated interface for families matching Supabase schema
 interface Family {
-  id: number;
+  id: string;
   name: string;
-  cpf: string;
-  additionalCpfs: string[]; // Array for additional family member CPFs
   address: string;
+  phone: string;
   members: number;
-  lastDelivery: string;
+  income: number;
   status: "active" | "blocked";
-  blockedBy?: {
-    id: number;
-    name: string;
-  };
-  blockedUntil?: string;
-  blockReason?: string;
+  blocked_until?: string;
+  created_at: string;
 }
 
 interface FamilyFormData {
   name: string;
-  cpf: string;
-  additionalCpfs: string[];
   address: string;
+  phone: string;
   members: number;
+  income: number;
 }
 
 const Families = () => {
@@ -51,44 +46,23 @@ const Families = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isUnblockDialogOpen, setIsUnblockDialogOpen] = useState(false);
   const [isNewFamilyDialogOpen, setIsNewFamilyDialogOpen] = useState(false);
-  const [additionalCpfs, setAdditionalCpfs] = useState<string[]>([]);
 
   const form = useForm<FamilyFormData>({
     defaultValues: {
       name: "",
-      cpf: "",
-      additionalCpfs: [],
       address: "",
+      phone: "",
       members: 1,
+      income: 0,
     }
   });
-
-  // Function to add a new CPF field
-  const addCpfField = () => {
-    setAdditionalCpfs([...additionalCpfs, ""]);
-  };
-
-  // Function to remove a CPF field
-  const removeCpfField = (index: number) => {
-    const newCpfs = additionalCpfs.filter((_, i) => i !== index);
-    setAdditionalCpfs(newCpfs);
-  };
-
-  // Function to update a CPF value
-  const updateCpfField = (index: number, value: string) => {
-    const newCpfs = [...additionalCpfs];
-    newCpfs[index] = value;
-    setAdditionalCpfs(newCpfs);
-  };
 
   // Function to create a new family
   const handleCreateFamily = async (data: FamilyFormData) => {
     try {
       const newFamily = {
         ...data,
-        additionalCpfs,
         status: "active",
-        lastDelivery: "Nunca",
       };
 
       await createFamilyMutation.mutateAsync(newFamily);
@@ -100,7 +74,6 @@ const Families = () => {
       
       setIsNewFamilyDialogOpen(false);
       form.reset();
-      setAdditionalCpfs([]);
     } catch (error) {
       toast({
         title: "Erro ao criar família",
@@ -126,9 +99,7 @@ const Families = () => {
       const updatedFamily = {
         ...selectedFamily,
         status: "active",
-        blockedBy: undefined,
-        blockedUntil: undefined,
-        blockReason: undefined
+        blocked_until: null
       };
 
       await updateFamilyMutation.mutateAsync(updatedFamily);
@@ -192,19 +163,19 @@ const Families = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead>CPF</TableHead>
+                    <TableHead>Telefone</TableHead>
                     <TableHead>Endereço</TableHead>
                     <TableHead>Pessoas</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Última Entrega</TableHead>
+                    <TableHead>Bloqueada até</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {families.map((family: Family) => (
+                  {families.map((family: any) => (
                     <TableRow key={family.id}>
                       <TableCell className="font-medium">{family.name}</TableCell>
-                      <TableCell>{family.cpf}</TableCell>
+                      <TableCell>{family.phone}</TableCell>
                       <TableCell>{family.address}</TableCell>
                       <TableCell>{family.members}</TableCell>
                       <TableCell>
@@ -217,7 +188,7 @@ const Families = () => {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell>{family.lastDelivery}</TableCell>
+                      <TableCell>{family.blocked_until || "-"}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm">Editar</Button>
@@ -265,7 +236,7 @@ const Families = () => {
                   <FormItem>
                     <FormLabel>Nome da Família</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Ex: Silva" />
+                      <Input {...field} placeholder="Ex: Família Silva" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -274,51 +245,17 @@ const Families = () => {
               
               <FormField
                 control={form.control}
-                name="cpf"
+                name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CPF do Responsável</FormLabel>
+                    <FormLabel>Telefone</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="000.000.000-00" />
+                      <Input {...field} placeholder="(34) 99999-9999" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              {/* Additional CPFs Section */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <FormLabel>CPFs dos Membros Adicionais</FormLabel>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addCpfField}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" /> Adicionar CPF
-                  </Button>
-                </div>
-                
-                {additionalCpfs.map((cpf, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      placeholder="000.000.000-00"
-                      value={cpf}
-                      onChange={(e) => updateCpfField(index, e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeCpfField(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
               
               <FormField
                 control={form.control}
@@ -353,15 +290,33 @@ const Families = () => {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="income"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Renda Familiar (R$)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.01"
+                        {...field} 
+                        value={field.value}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        min="0"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <DialogFooter>
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => {
-                    setIsNewFamilyDialogOpen(false);
-                    setAdditionalCpfs([]);
-                  }}
+                  onClick={() => setIsNewFamilyDialogOpen(false)}
                 >
                   Cancelar
                 </Button>
@@ -392,8 +347,8 @@ const Families = () => {
                   <p>{selectedFamily.name}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-500">CPF</p>
-                  <p>{selectedFamily.cpf}</p>
+                  <p className="text-sm font-semibold text-gray-500">Telefone</p>
+                  <p>{selectedFamily.phone}</p>
                 </div>
               </div>
               
@@ -408,8 +363,8 @@ const Families = () => {
                   <p>{selectedFamily.members} pessoas</p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-500">Última Entrega</p>
-                  <p>{selectedFamily.lastDelivery}</p>
+                  <p className="text-sm font-semibold text-gray-500">Renda</p>
+                  <p>R$ {selectedFamily.income.toFixed(2)}</p>
                 </div>
               </div>
               
@@ -424,24 +379,11 @@ const Families = () => {
                 </div>
               </div>
               
-              {selectedFamily.status === "blocked" && (
-                <>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-500">Bloqueada por</p>
-                    <p>{selectedFamily.blockedBy?.name}</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-500">Bloqueada até</p>
-                      <p>{selectedFamily.blockedUntil}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-500">Motivo</p>
-                      <p>{selectedFamily.blockReason}</p>
-                    </div>
-                  </div>
-                </>
+              {selectedFamily.status === "blocked" && selectedFamily.blocked_until && (
+                <div>
+                  <p className="text-sm font-semibold text-gray-500">Bloqueada até</p>
+                  <p>{new Date(selectedFamily.blocked_until).toLocaleDateString('pt-BR')}</p>
+                </div>
               )}
             </div>
           )}

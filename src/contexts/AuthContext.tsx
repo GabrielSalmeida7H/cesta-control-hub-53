@@ -92,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: userData.id,
           email: userData.email,
           name: userData.name,
-          type: userData.type,
+          type: userData.type as 'admin' | 'normal',
           institution_id: userData.institution_id,
           institution: userData.institution ? {
             id: userData.institution.id,
@@ -138,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: userData.id,
         email: userData.email,
         name: userData.name,
-        type: userData.type,
+        type: userData.type as 'admin' | 'normal',
         institution_id: userData.institution_id,
       };
 
