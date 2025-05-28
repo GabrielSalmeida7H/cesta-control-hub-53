@@ -75,6 +75,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      // First, ensure the user exists in our public.users table
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (!existingUser) {
+        // Get user data from auth.users
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser.user) {
+          // Create user record in public.users table
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: authUser.user.id,
+              email: authUser.user.email || '',
+              name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'Usuário',
+              type: authUser.user.email === 'admin@araguari.mg.gov.br' ? 'admin' : 'normal'
+            });
+
+          if (insertError) {
+            console.error('Error creating user profile:', insertError);
+          }
+        }
+      }
+
+      // Now fetch the complete user profile
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select(`
