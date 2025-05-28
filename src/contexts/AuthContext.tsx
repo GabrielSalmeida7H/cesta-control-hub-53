@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -75,34 +74,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      // First, ensure the user exists in our public.users table
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (!existingUser) {
-        // Get user data from auth.users
-        const { data: authUser } = await supabase.auth.getUser();
-        if (authUser.user) {
-          // Create user record in public.users table
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert({
-              id: authUser.user.id,
-              email: authUser.user.email || '',
-              name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'Usuário',
-              type: authUser.user.email === 'admin@araguari.mg.gov.br' ? 'admin' : 'normal'
-            });
-
-          if (insertError) {
-            console.error('Error creating user profile:', insertError);
-          }
-        }
-      }
-
-      // Now fetch the complete user profile
+      console.log('Fetching user profile for:', userId);
+      
+      // Primeiro, tenta buscar o usuário existente
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select(`
@@ -112,12 +86,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .single();
 
-      if (userError) {
+      if (userError && userError.code !== 'PGRST116') {
         console.error('Error fetching user profile:', userError);
+        // Se há erro que não é "usuário não encontrado", criar usuário básico
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser.user) {
+          const basicUser: AuthUser = {
+            id: authUser.user.id,
+            email: authUser.user.email || '',
+            name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'Usuário',
+            type: authUser.user.email === 'admin@araguari.mg.gov.br' ? 'admin' : 'normal'
+          };
+          setUser(basicUser);
+        }
         return;
       }
 
-      if (userData) {
+      if (!userData) {
+        // Usuário não existe na tabela, vamos criar
+        console.log('User not found, creating...');
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser.user) {
+          const newUserData = {
+            id: authUser.user.id,
+            email: authUser.user.email || '',
+            name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'Usuário',
+            type: authUser.user.email === 'admin@araguari.mg.gov.br' ? 'admin' : 'normal'
+          };
+
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert(newUserData);
+
+          if (insertError) {
+            console.error('Error creating user profile:', insertError);
+            // Se não conseguir criar, usar dados básicos
+            setUser(newUserData as AuthUser);
+            return;
+          }
+
+          // Buscar novamente após criação
+          const { data: newUser } = await supabase
+            .from('users')
+            .select(`
+              *,
+              institution:institutions(*)
+            `)
+            .eq('id', userId)
+            .single();
+
+          if (newUser) {
+            const authUser: AuthUser = {
+              id: newUser.id,
+              email: newUser.email,
+              name: newUser.name,
+              type: newUser.type as 'admin' | 'normal',
+              institution_id: newUser.institution_id,
+              institution: newUser.institution ? {
+                id: newUser.institution.id,
+                name: newUser.institution.name,
+                address: newUser.institution.address,
+                phone: newUser.institution.phone,
+              } : undefined
+            };
+            setUser(authUser);
+          }
+        }
+      } else {
+        // Usuário existe
         const authUser: AuthUser = {
           id: userData.id,
           email: userData.email,
@@ -136,11 +172,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
+      // Em caso de erro, usar dados básicos do auth
+      const { data: authUser } = await supabase.auth.getUser();
+      if (authUser.user) {
+        const basicUser: AuthUser = {
+          id: authUser.user.id,
+          email: authUser.user.email || '',
+          name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'Usuário',
+          type: authUser.user.email === 'admin@araguari.mg.gov.br' ? 'admin' : 'normal'
+        };
+        setUser(basicUser);
+      }
     }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('Attempting login for:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -151,6 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
+      console.log('Login successful:', data.user);
       return !!data.user;
     } catch (error) {
       console.error('Error in login:', error);

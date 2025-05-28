@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +23,7 @@ const Login = () => {
   useEffect(() => {
     if (user) {
       console.log("User detected, redirecting...", user);
-      navigate("/");
+      navigate("/", { replace: true });
     }
   }, [user, navigate]);
 
@@ -33,18 +32,19 @@ const Login = () => {
     setLoading(true);
 
     try {
+      console.log('Starting login process...');
       const success = await login(email, password);
       
       if (success) {
+        console.log('Login successful, showing toast and redirecting...');
         toast({
           title: "Login realizado com sucesso!",
           description: "Redirecionando para o painel...",
         });
         
-        // Redirecionamento direto após login bem-sucedido
-        setTimeout(() => {
-          navigate("/");
-        }, 1000);
+        // Redirecionamento imediato - não esperar o useEffect
+        console.log('Navigating to dashboard...');
+        navigate("/", { replace: true });
       } else {
         toast({
           title: "Erro no login",
@@ -53,6 +53,7 @@ const Login = () => {
         });
       }
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: "Erro de conexão",
         description: "Verifique sua conexão com a internet.",
