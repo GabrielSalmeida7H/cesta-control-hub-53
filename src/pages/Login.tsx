@@ -39,7 +39,8 @@ const Login = () => {
           title: "Login realizado com sucesso!",
           description: "Redirecionando para o painel...",
         });
-        navigate("/");
+        // O redirecionamento acontecerá automaticamente pelo useEffect acima
+        // quando o user state for atualizado no AuthContext
       } else {
         toast({
           title: "Erro no login",
