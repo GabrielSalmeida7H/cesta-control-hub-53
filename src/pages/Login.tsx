@@ -23,6 +23,7 @@ const Login = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
+      console.log("User detected, redirecting...", user);
       navigate("/");
     }
   }, [user, navigate]);
@@ -39,8 +40,11 @@ const Login = () => {
           title: "Login realizado com sucesso!",
           description: "Redirecionando para o painel...",
         });
-        // O redirecionamento acontecerá automaticamente pelo useEffect acima
-        // quando o user state for atualizado no AuthContext
+        
+        // Redirecionamento direto após login bem-sucedido
+        setTimeout(() => {
+          navigate("/");
+        }, 1000);
       } else {
         toast({
           title: "Erro no login",
