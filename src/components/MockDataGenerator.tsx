@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useState } from "react";
 import { useCreateFamily, useCreateInstitution, useCreateDelivery } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
-import { Database, Users, Building, Package } from "lucide-react";
+import { Users, Building, Package } from "lucide-react";
 
 const MockDataGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -98,8 +98,7 @@ const MockDataGenerator = () => {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Database className="h-5 w-5" />
+        <CardTitle>
           Dados de Exemplo
         </CardTitle>
         <CardDescription>
