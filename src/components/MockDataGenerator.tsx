@@ -96,41 +96,39 @@ const MockDataGenerator = () => {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>
+    <Card className="w-full max-w-md shadow-lg border-0 bg-white/50 backdrop-blur-sm">
+      <CardHeader className="text-center">
+        <CardTitle className="text-lg font-semibold text-primary">
           Dados de Exemplo
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm text-gray-600">
           Gerar dados mockup para testar o sistema
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="text-sm text-gray-600">
-            <p className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              3 famílias de exemplo
-            </p>
-            <p className="flex items-center gap-2">
-              <Building className="h-4 w-4" />
-              2 instituições com estoque
-            </p>
-          </div>
-          
-          <Button 
-            onClick={generateMockData} 
-            disabled={isGenerating}
-            className="w-full"
-          >
-            <Package className="mr-2 h-4 w-4" />
-            {isGenerating ? "Gerando..." : "Gerar Dados de Exemplo"}
-          </Button>
-          
-          <p className="text-xs text-gray-500">
-            Nota: Dados duplicados serão ignorados automaticamente.
+      <CardContent className="space-y-4">
+        <div className="space-y-3 text-sm text-gray-600">
+          <p className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            3 famílias de exemplo
+          </p>
+          <p className="flex items-center gap-2">
+            <Building className="h-4 w-4 text-primary" />
+            2 instituições com estoque
           </p>
         </div>
+        
+        <Button 
+          onClick={generateMockData} 
+          disabled={isGenerating}
+          className="w-full bg-primary hover:bg-primary/90 text-white shadow-md"
+        >
+          <Package className="mr-2 h-4 w-4" />
+          {isGenerating ? "Gerando..." : "Gerar Dados de Exemplo"}
+        </Button>
+        
+        <p className="text-xs text-gray-500 text-center">
+          Nota: Dados duplicados serão ignorados automaticamente.
+        </p>
       </CardContent>
     </Card>
   );

@@ -12,10 +12,10 @@ const NavigationButtons = ({ userType }: NavigationButtonsProps) => {
   const navigate = useNavigate();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Navegação Rápida</CardTitle>
-        <CardDescription>
+    <Card className="shadow-lg border-0 bg-white/50 backdrop-blur-sm">
+      <CardHeader className="text-center">
+        <CardTitle className="text-lg font-semibold text-primary">Navegação Rápida</CardTitle>
+        <CardDescription className="text-sm text-gray-600">
           Acesse rapidamente as principais funcionalidades do sistema
         </CardDescription>
       </CardHeader>
@@ -23,40 +23,40 @@ const NavigationButtons = ({ userType }: NavigationButtonsProps) => {
         <div className="grid grid-cols-2 gap-4">
           <Button 
             onClick={() => navigate("/families")} 
-            className="h-20 flex flex-col gap-2"
+            className="h-20 flex flex-col gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-primary hover:text-white shadow-md transition-all duration-300"
             variant="outline"
           >
             <Users className="h-6 w-6" />
-            <span>Famílias</span>
+            <span className="text-sm font-medium">Famílias</span>
           </Button>
           
           {userType === 'admin' && (
             <Button 
               onClick={() => navigate("/institutions")} 
-              className="h-20 flex flex-col gap-2"
+              className="h-20 flex flex-col gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-primary hover:text-white shadow-md transition-all duration-300"
               variant="outline"
             >
               <Building className="h-6 w-6" />
-              <span>Instituições</span>
+              <span className="text-sm font-medium">Instituições</span>
             </Button>
           )}
           
           <Button 
             onClick={() => navigate("/delivery")} 
-            className="h-20 flex flex-col gap-2"
+            className="h-20 flex flex-col gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-primary hover:text-white shadow-md transition-all duration-300"
             variant="outline"
           >
             <Package className="h-6 w-6" />
-            <span>Entregas</span>
+            <span className="text-sm font-medium">Entregas</span>
           </Button>
           
           <Button 
             onClick={() => navigate("/reports")} 
-            className="h-20 flex flex-col gap-2"
+            className="h-20 flex flex-col gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-primary hover:text-white shadow-md transition-all duration-300"
             variant="outline"
           >
             <FileText className="h-6 w-6" />
-            <span>Relatórios</span>
+            <span className="text-sm font-medium">Relatórios</span>
           </Button>
         </div>
       </CardContent>

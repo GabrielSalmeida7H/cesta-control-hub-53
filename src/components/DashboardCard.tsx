@@ -18,17 +18,17 @@ const DashboardCard = ({ title, value, icon: Icon, color }: DashboardCardProps) 
   };
 
   return (
-    <Card className="border rounded-lg overflow-hidden shadow-md">
+    <Card className="border-0 rounded-lg overflow-hidden shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
       <div className={`p-4 ${colorClasses[color]}`}>
         <div className="flex justify-between items-center">
-          <h3 className="font-semibold">{title}</h3>
-          <Icon className="h-5 w-5" />
+          <h3 className="font-semibold text-sm">{title}</h3>
+          <Icon className="h-5 w-5 opacity-90" />
         </div>
       </div>
       <CardContent className="p-4">
-        <p className="text-3xl font-bold">{value}</p>
+        <p className="text-3xl font-bold text-gray-800">{value}</p>
       </CardContent>
-      <CardFooter className="bg-gray-50 px-4 py-3 text-xs text-gray-500">
+      <CardFooter className="bg-gray-50/80 px-4 py-3 text-xs text-gray-500 border-t border-gray-100">
         Atualizado hoje
       </CardFooter>
     </Card>
